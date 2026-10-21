@@ -37,6 +37,9 @@ textarea{min-height:80px}
 .btn{display:inline-block;border:0;border-radius:10px;padding:12px 20px;font-size:16px;font-weight:700;cursor:pointer;min-height:48px;background:var(--teal);color:#fff}
 .btn.secondary{background:#fff;color:var(--teal-dark);border:2px solid var(--teal)}
 .btn.danger{background:var(--red)}
+.form-error{display:none;background:var(--red-bg);border:1.5px solid var(--red);color:var(--red);border-radius:10px;padding:12px;font-weight:700;margin-top:12px}
+.form-error.show{display:block}
+input.invalid,select.invalid{border-color:var(--red)!important;background:var(--red-bg)}
 .btn:disabled{background:#b9c6c6;cursor:not-allowed}
 .btn.small{padding:8px 14px;min-height:40px;font-size:14px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
@@ -203,7 +206,7 @@ summary{cursor:pointer;font-weight:700}
 
     <div class="card">
       <h2 data-i18n="addTitle">إضافة حالة جديدة</h2>
-      <form id="addForm">
+      <form id="addForm" novalidate>
         <div class="grid">
           <div><label data-i18n="aName">اسم المريض (تجريبي)</label><input id="a_name" required></div>
           <div><label data-i18n="aAge">العمر</label><input id="a_age" type="number" min="0" max="120" required></div>
@@ -217,6 +220,7 @@ summary{cursor:pointer;font-weight:700}
           <div><label data-i18n="aNote">ملاحظة الخطوة التالية (اختياري)</label><input id="a_note"></div>
         </div>
         <button class="btn mt" type="submit" data-i18n="aBtn">إضافة الحالة</button>
+        <div id="a_error" class="form-error" role="alert"></div>
       </form>
     </div>
   </section>
@@ -964,9 +968,31 @@ function handoffRespond(i, status){
   addEvent(c,"handoff_resp", c.handoffs[i].to, status+(c.handoffs[i].responseNote? " — "+c.handoffs[i].responseNote:""));
   save(); renderAll();
 }
+function prefillDate(){
+  const el = document.getElementById("a_date");
+  if(el && !el.value){ const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); el.value = d.toISOString().slice(0,16); }
+}
 function addCase(e){
   e.preventDefault();
-  const id = "RY-"+String(100 + cases.length + 1).slice(1);
+  const checks = [
+    {id:"a_name", ok:document.getElementById("a_name").value.trim() !== "", ar:"اسم المريض", en:"Patient name"},
+    {id:"a_age", ok:(v=>v !== "" && Number(v) >= 0 && Number(v) <= 120)(document.getElementById("a_age").value), ar:"العمر", en:"Age"},
+    {id:"a_result", ok:document.getElementById("a_result").value.trim() !== "", ar:"ملخص النتيجة", en:"Result summary"},
+    {id:"a_date", ok:document.getElementById("a_date").value !== "", ar:"تاريخ/وقت النتيجة", en:"Result date/time"},
+    {id:"a_sla", ok:(v=>v !== "" && Number(v) >= 1)(document.getElementById("a_sla").value), ar:"مهلة الإحالة", en:"Referral SLA"}
+  ];
+  const missing = checks.filter(c=>!c.ok);
+  const errBox = document.getElementById("a_error");
+  checks.forEach(c=>document.getElementById(c.id).classList.toggle("invalid", !c.ok));
+  if(missing.length){
+    errBox.textContent = (LANG === "ar" ? "⚠ لا يمكن إضافة الحالة — الحقول التالية ناقصة أو غير صحيحة: " : "⚠ Cannot add the case — these fields are missing or invalid: ") + missing.map(c=>LANG === "ar" ? c.ar : c.en).join(LANG === "ar" ? "، " : ", ");
+    errBox.classList.add("show");
+    const first = document.getElementById(missing[0].id);
+    first.scrollIntoView({behavior:"smooth", block:"center"}); first.focus();
+    return;
+  }
+  errBox.classList.remove("show"); errBox.textContent = "";
+  const id = "RY-"+String(cases.length + 1).padStart(3,"0");
   const refStatus = document.getElementById("a_refstatus").value;
   const resultTs = document.getElementById("a_date").value;
   const c = { id:id, name:document.getElementById("a_name").value.trim(), age:Number(document.getElementById("a_age").value),
@@ -981,7 +1007,7 @@ function addCase(e){
     handoffs:[], closure:null, redFlag:null, events:[] };
   c.events.push(ev("issued", c.resultTs, "Screening service"));
   if(c.referral.sentTs) c.events.push(ev("refsent", c.resultTs, c.owner||"Care team"));
-  cases.push(c); save(); e.target.reset(); fillFilterOptions(); renderAll(); openDetail(id);
+  cases.push(c); save(); e.target.reset(); prefillDate(); fillFilterOptions(); renderAll(); openDetail(id);
 }
 
 /* ================= RENDER ALL / EVENTS ================= */
@@ -1007,7 +1033,7 @@ document.getElementById("sbarBtn").addEventListener("click", buildSbar);
 ["f_status","f_owner","f_type","f_over"].forEach(id=>document.getElementById(id).addEventListener("change", renderCaseList));
 document.getElementById("addForm").addEventListener("submit", addCase);
 document.getElementById("resetBtn").addEventListener("click", ()=>{ if(confirm(t("confirmReset"))){ localStorage.removeItem(LS_KEY); cases = loadCases(); selectedCaseId=null; renderAll(); } });
-renderAll();
+renderAll(); prefillDate();
 </script>
 </body>
 </html>
