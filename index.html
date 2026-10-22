@@ -40,6 +40,18 @@ textarea{min-height:80px}
 .form-error{display:none;background:var(--red-bg);border:1.5px solid var(--red);color:var(--red);border-radius:10px;padding:12px;font-weight:700;margin-top:12px}
 .form-error.show{display:block}
 input.invalid,select.invalid{border-color:var(--red)!important;background:var(--red-bg)}
+.medrow{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:8px 0;background:#fff}
+.medrow .done{opacity:.55}
+.edu{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:8px 0;background:#fff}
+.edu h3{margin:0 0 6px;font-size:16px}
+.edu .src{font-size:12px;color:#666;margin-top:6px}
+.chatbox{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fbfdfd;max-height:380px;overflow:auto}
+.chatmsg{max-width:88%;padding:9px 12px;border-radius:14px;margin:6px 0;line-height:1.5}
+.chatmsg.bot{background:#e8f4f2;border-start-start-radius:4px}
+.chatmsg.user{background:var(--teal);color:#fff;margin-inline-start:auto;border-start-end-radius:4px}
+.chatopts{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.chatopts button{border:1.5px solid var(--teal);background:#fff;color:var(--teal);border-radius:999px;padding:8px 14px;font-weight:700;cursor:pointer;min-height:40px}
+.cihist{font-size:14px;color:#444}
 .btn:disabled{background:#b9c6c6;cursor:not-allowed}
 .btn.small{padding:8px 14px;min-height:40px;font-size:14px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
@@ -115,7 +127,41 @@ summary{cursor:pointer;font-weight:700}
   <section id="viewPatient" class="view active">
 
     <div class="card">
+      <h2 data-i18n="dcTitle">رعاية — مرافق رحلتي في المستشفى</h2>
+      <p class="hint" data-i18n="dcIntro">رحلة مريض تجريبي عبر مراحل المستشفى الثلاث: التحضير قبل الدخول، وأثناء الإقامة، والمتابعة بعد الخروج — في مكان واحد.</p>
+      <h3 data-i18n="ph1">المرحلة ١ — قبل المشفى: حضّر حالك</h3>
+      <div id="prepList"></div>
+      <h3 data-i18n="ph2">المرحلة ٢ — أثناء المشفى</h3>
+      <div id="stayGuide"></div>
+      <label data-i18n="qNote">أسئلتي للطبيب (تُحفظ على جهازك)</label>
+      <textarea id="myQuestions" rows="3" data-i18n-ph="qNotePh" placeholder="اكتب أسئلتك هنا لطرحها على فريقك الطبي…"></textarea>
+      <h3 data-i18n="ph3">المرحلة ٣ — بعد المشفى: خطتي ومتابعتي</h3>
+      <div id="dcPlan"></div>
+      <h3 data-i18n="dcMeds">أدويتي اليوم</h3>
+      <div id="dcMeds"></div>
+      <h3 data-i18n="dcCheckin">تسجيل التعافي اليومي</h3>
+      <div class="grid">
+        <div><label data-i18n="ciBreath">التنفس اليوم مقارنة بالأمس</label><select id="ci_breath"><option value="same" data-i18n="ciSame">نفس الشيء</option><option value="better" data-i18n="ciBetter">أفضل</option><option value="worse" data-i18n="ciWorse">أسوأ</option></select></div>
+        <div><label data-i18n="ciFever">هل لديك حرارة أو قشعريرة؟</label><select id="ci_fever"><option value="no" data-i18n="no">لا</option><option value="yes" data-i18n="yes">نعم</option></select></div>
+        <div><label data-i18n="ciPain">الألم (٠ = لا ألم، ١٠ = أشد ألم)</label><input type="number" id="ci_pain" min="0" max="10" value="2"></div>
+        <div><label data-i18n="ciWalk">هل مشيت اليوم داخل البيت؟</label><select id="ci_walk"><option value="yes" data-i18n="yes">نعم</option><option value="no" data-i18n="no">لا</option></select></div>
+        <div><label data-i18n="ciMood">المزاج والنوم بشكل عام</label><select id="ci_mood"><option value="ok" data-i18n="ciOk">مقبول</option><option value="good" data-i18n="ciGood">جيد</option><option value="bad" data-i18n="ciBad">سيئ</option></select></div>
+      </div>
+      <button class="btn mt" id="ciSubmit" type="button" data-i18n="ciBtn">تسجيل اليوم</button>
+      <div id="ciFeedback" class="mt"></div>
+      <div id="ciHistory" class="mt cihist"></div>
+    </div>
+
+    <div class="card">
+      <h2 data-i18n="eduTitle">مكتبة التثقيف الصحي</h2>
+      <p class="hint" data-i18n="eduIntro">معلومات مبسطة من مصادر معلنة، لفهم فحصك وحالتك — ليست بديلاً عن نصيحة طبيبك.</p>
+      <div id="eduList"></div>
+    </div>
+
+    <div class="card">
       <h2 data-i18n="gwTitle">بوابة الوقاية والفحص</h2>
+      <button class="btn mt" id="chatStart" type="button" data-i18n="chatStart">ابدأ تقييماً بأسلوب محادثة</button>
+      <div id="chatBox" class="chatbox mt" style="display:none"></div>
       <p class="hint" data-i18n="gwIntro">أجب عن أسئلة قصيرة، وسنعرض الفحوصات التي قد تكون مناسبة لك وفق قواعد إرشادية معلنة المصدر. النتيجة ليست تشخيصاً، ويجب أن يؤكد أهليتك مختص رعاية صحية.</p>
       <form id="gwForm">
         <div class="grid">
@@ -241,6 +287,18 @@ ar:{
   demoBanner:"بيانات تجريبية — Synthetic demo data",
   tabPatient:"تجربة المريض", tabClinician:"لوحة الطبيب / منسّق الرعاية",
   gwTitle:"بوابة الوقاية والفحص",
+  dcTitle:"رعاية — مرافق رحلتي في المستشفى",
+  dcIntro:"رحلة مريض تجريبي عبر مراحل المستشفى الثلاث: التحضير قبل الدخول، وأثناء الإقامة، والمتابعة بعد الخروج — في مكان واحد.",
+  dcMeds:"أدويتي اليوم", dcCheckin:"تسجيل التعافي اليومي",
+  ciBreath:"التنفس اليوم مقارنة بالأمس", ciSame:"نفس الشيء", ciBetter:"أفضل", ciWorse:"أسوأ",
+  ciFever:"هل لديك حرارة أو قشعريرة؟", ciPain:"الألم (٠ = لا ألم، ١٠ = أشد ألم)",
+  ciWalk:"هل مشيت اليوم داخل البيت؟", ciMood:"المزاج والنوم بشكل عام", ciOk:"مقبول", ciGood:"جيد", ciBad:"سيئ",
+  ciBtn:"تسجيل اليوم",
+  eduTitle:"مكتبة التثقيف الصحي",
+  eduIntro:"معلومات مبسطة من مصادر معلنة، لفهم فحصك وحالتك — ليست بديلاً عن نصيحة طبيبك.",
+  chatStart:"ابدأ تقييماً بأسلوب محادثة",
+  ph1:"المرحلة ١ — قبل المشفى: حضّر حالك", ph2:"المرحلة ٢ — أثناء المشفى", ph3:"المرحلة ٣ — بعد المشفى: خطتي ومتابعتي",
+  qNote:"أسئلتي للطبيب (تُحفظ على جهازك)", qNotePh:"اكتب أسئلتك هنا لطرحها على فريقك الطبي…",
   gwIntro:"أجب عن أسئلة قصيرة، وسنعرض الفحوصات التي قد تكون مناسبة لك وفق قواعد إرشادية معلنة المصدر. النتيجة ليست تشخيصاً، ويجب أن يؤكد أهليتك مختص رعاية صحية.",
   qAge:"العمر", qSex:"الجنس", female:"أنثى", male:"ذكر", yes:"نعم", no:"لا",
   qSmoke:"هل تدخّن حالياً أو دخّنت سابقاً؟", qSmokeYears:"إذا نعم: كم سنة دخّنت تقريباً؟",
@@ -323,6 +381,18 @@ en:{
   demoBanner:"Synthetic demo data — بيانات تجريبية",
   tabPatient:"Patient Experience", tabClinician:"Clinician Dashboard",
   gwTitle:"Prevention Gateway",
+  dcTitle:"Riaya — My Hospital Journey Companion",
+  dcIntro:"A synthetic patient journey across the three hospital phases: preparing before admission, during the stay, and follow-up after discharge — in one place.",
+  dcMeds:"My medications today", dcCheckin:"Daily recovery check-in",
+  ciBreath:"Breathing today compared with yesterday", ciSame:"The same", ciBetter:"Better", ciWorse:"Worse",
+  ciFever:"Do you have fever or chills?", ciPain:"Pain (0 = none, 10 = worst)",
+  ciWalk:"Did you walk at home today?", ciMood:"Mood and sleep overall", ciOk:"Okay", ciGood:"Good", ciBad:"Bad",
+  ciBtn:"Log today",
+  eduTitle:"Health Education Library",
+  eduIntro:"Plain-language information from named sources, to understand your screening and condition — not a substitute for your doctor's advice.",
+  chatStart:"Start a chat-style assessment",
+  ph1:"Phase 1 — Before the hospital: get ready", ph2:"Phase 2 — During the hospital stay", ph3:"Phase 3 — After the hospital: my plan and follow-up",
+  qNote:"My questions for the doctor (saved on your device)", qNotePh:"Write your questions here to ask your medical team…",
   gwIntro:"Answer a few short questions and we will show screenings that may be relevant to you, using transparent rules with named sources. This is not a diagnosis, and a healthcare professional must confirm your eligibility.",
   qAge:"Age", qSex:"Sex", female:"Female", male:"Male", yes:"Yes", no:"No",
   qSmoke:"Do you currently smoke, or have you smoked before?", qSmokeYears:"If yes: about how many years did you smoke?",
@@ -412,7 +482,9 @@ function fmt(dt){ if(!dt) return "—"; const d=new Date(dt); return d.toLocaleS
 function daysBetween(a,b){ return (new Date(b)-new Date(a))/86400000; }
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 const OWNERS = ["Dr. Lina Haddad","Nurse Coordinator Omar Sayed","Dr. Karim Nasser","Care Coordinator Sara Ali"];
-const SCREENING_TYPES = ["Diabetes screening (HbA1c)","Breast screening (Mammogram)","Hypertension screening (BP)","Colorectal screening (FIT)","Cervical screening (Pap)","Lung screening (LDCT)"];
+const SCREENING_TYPES = ["Diabetes screening (HbA1c)","Breast screening (Mammogram)","Hypertension screening (BP)","Colorectal screening (FIT)","Cervical screening (Pap)","Lung screening (LDCT)",
+"Post-discharge follow-up — Medications","Post-discharge follow-up — Appointment","Post-discharge follow-up — Pending result","Post-discharge follow-up — Recovery check",
+"Blood Tests (CBC)","Kidney Function Tests","Liver Function Tests","Thyroid Function Tests","Urinalysis","CT Scan","MRI","Ultrasound","ECG","Other"];
 const STEPS = ["issued","notified","understood","refsent","refaccepted","appt","completed","closed"];
 
 /* ================= SEED DATA ================= */
@@ -547,10 +619,43 @@ function seedCases(){
     appointment:null, completionEvidence:"", nextStepNote:"The first referral was declined by the receiving clinic (capacity). A new referral decision is required.",
     handoffs:[], closure:null, redFlag:null,
     events:[ev("issued",iso(D-5*DY),"Screening service"),ev("notified",iso(D-5*DY+5*H),OWNERS[1]),ev("understood",iso(D-4*DY),"Patient"),ev("refsent",iso(D-5*DY+6*H),OWNERS[1]),ev("refdeclined",iso(D-3*DY),"Breast Assessment Clinic","Declined — capacity (simulated record)")]},
+   {id:"RY-013", name:"محمود — Mahmoud", age:68, type:SCREENING_TYPES[6],
+    result:{summary:"Discharge plan issued after a 9-day hospital stay — medication list needs daily adherence follow-up (illustrative)", plain:{ar:"خطة خروج بعد إقامة ٩ أيام في المستشفى، مع قائمة أدوية تحتاج متابعة التزام يومية في هذا المثال التعليمي.",en:"A discharge plan after a 9-day hospital stay, with a medication list needing daily adherence follow-up in this illustrative example."},
+      notEstablish:{ar:"لا تغيّر الخطة أي جرعة — أي تعديل يقرره الفريق الطبي فقط.",en:"The plan changes no dose — any change is decided by the medical team only."},
+      source:"Illustrative demo value — not a real patient result"},
+    resultTs: iso(D-2*DY), owner:OWNERS[3], notifySlaDays:2, refSlaDays:5,
+    notifiedTs: iso(D-2*DY+3*H), understoodTs: iso(D-1*DY), understandNote:"Restated: take the morning and evening medications as listed and log them daily in Riaya.",
+    referral:{target:"", status:"notneeded", sentTs:null, respondedTs:null},
+    appointment:{date:"2026-10-29", status:"booked"}, completionEvidence:"",
+    nextStepNote:"Daily medication-adherence check-ins via the patient companion; Hospital follow-up clinic appointment booked for 29 Oct.",
+    handoffs:[], closure:null, redFlag:null,
+    events:[ev("issued",iso(D-2*DY),"Hospital discharge team"),ev("notified",iso(D-2*DY+3*H),OWNERS[3]),ev("understood",iso(D-1*DY),"Patient"),ev("appt",iso(D-2*DY+4*H),OWNERS[3],"29 Oct 2026 — Hospital follow-up clinic")]},
+   {id:"RY-014", name:"سعاد — Souad", age:59, type:SCREENING_TYPES[7],
+    result:{summary:"Post-discharge follow-up appointment referral sent 6 days ago, not yet accepted (illustrative)", plain:{ar:"أُرسلت إحالة موعد متابعة ما بعد الخروج قبل ٦ أيام ولم تُقبل بعد في هذا المثال التعليمي.",en:"A post-discharge follow-up appointment referral was sent 6 days ago and has not been accepted yet in this illustrative example."},
+      notEstablish:{ar:"لا يعني التأخير أن الموعد أُلغي — يحتاج متابعة نشطة من المنسّق.",en:"The delay does not mean the appointment was cancelled — it needs active coordinator follow-up."},
+      source:"Illustrative demo value — not a real patient result"},
+    resultTs: iso(D-7*DY), owner:OWNERS[1], notifySlaDays:2, refSlaDays:5,
+    notifiedTs: iso(D-7*DY+4*H), understoodTs: iso(D-6*DY), understandNote:"Restated: waiting for the follow-up appointment date to be confirmed.",
+    referral:{target:"Hospital Follow-up Clinic", status:"pending", sentTs: iso(D-6*DY), respondedTs:null},
+    appointment:null, completionEvidence:"",
+    nextStepNote:"Referral acceptance is overdue beyond the 5-day SLA. Coordinator to chase the clinic today and document the outcome.",
+    handoffs:[], closure:null, redFlag:null,
+    events:[ev("issued",iso(D-7*DY),"Hospital discharge team"),ev("notified",iso(D-7*DY+4*H),OWNERS[1]),ev("understood",iso(D-6*DY),"Patient"),ev("refsent",iso(D-6*DY),OWNERS[1])]},
+   {id:"RY-015", name:"طارق — Tarek", age:63, type:SCREENING_TYPES[8],
+    result:{summary:"Post-discharge kidney function test taken 4 days ago; result not yet issued (illustrative)", plain:{ar:"أُخذ فحص وظائف كلى بعد الخروج قبل ٤ أيام ونتيجته لم تصدر بعد في هذا المثال التعليمي.",en:"A post-discharge kidney function test was taken 4 days ago and its result has not been issued yet in this illustrative example."},
+      notEstablish:{ar:"غياب النتيجة لا يعني أنها طبيعية أو غير طبيعية.",en:"A missing result does not mean it is normal or abnormal."},
+      source:"Illustrative demo value — not a real patient result"},
+    resultTs: iso(D-4*DY), owner:OWNERS[0], notifySlaDays:2, refSlaDays:5,
+    notifiedTs: null, understoodTs:null, understandNote:"",
+    referral:{target:"", status:"none", sentTs:null, respondedTs:null},
+    appointment:null, completionEvidence:"",
+    nextStepNote:"Result pending beyond the 2-day notification window. Laboratory to be chased; patient to be notified the same day the result is issued.",
+    handoffs:[], closure:null, redFlag:null,
+    events:[ev("issued",iso(D-4*DY),"Laboratory (test taken — result pending)")]}
   ];
 }
 /* ================= STATE ================= */
-const LS_KEY = "riaya_demo_v1";
+const LS_KEY = "riaya_demo_v2";
 let cases = loadCases();
 let selectedPatientId = "RY-001";
 let selectedCaseId = null;
@@ -1011,8 +1116,113 @@ function addCase(e){
 }
 
 /* ================= RENDER ALL / EVENTS ================= */
+/* ================= v2: JOURNEY COMPANION + EDUCATION ================= */
+const EDU_CONTENT = [
+ {title:{ar:"كيف تحضّر لدخول المستشفى؟",en:"How do I prepare for a hospital admission?"}, body:{ar:"جهّز قائمة بأدويتك الحالية وجرعاتها، وقائمة بالحساسيات المعروفة، وبطاقة هويتك وأوراق التأمين إن وجدت، وأسماء أطبائك المعتادين. اكتب أسئلتك مسبقاً، واسأل فريقك إن كان عليك الصيام أو إيقاف دواء معين قبل إجراء مخطط — لا توقف أي دواء من تلقاء نفسك.",en:"Prepare a list of your current medications and doses, known allergies, your ID and insurance papers if any, and your usual doctors' names. Write your questions in advance, and ask your team whether you must fast or stop any medication before a planned procedure — never stop a medication on your own."}, src:"General patient-education guidance"},
+ {title:{ar:"أثناء إقامتك: افهم وشارك",en:"During your stay: understand and take part"}, body:{ar:"من حقك أن تسأل: ما هذا الدواء ولماذا؟ ما هذا الفحص وماذا سيغيّر؟ من الطبيب المسؤول عني اليوم؟ دوّن الأسئلة حين تخطر لك، واطلب شرحاً بلغة تفهمها. إذا ظهر عرض جديد أو مقلق، أبلغ الممرض أو الطبيب فوراً ولا تنتظر الجولة.",en:"You have the right to ask: what is this medication and why? What is this test and what will it change? Who is my doctor today? Note questions as they occur to you, and ask for explanations in language you understand. If a new or worrying symptom appears, tell the nurse or doctor immediately — do not wait for the round."}, src:"General patient-education guidance"},
+ {title:{ar:"افهم خطة خروجك قبل أن تغادر",en:"Understand your discharge plan before you leave"}, body:{ar:"قبل الخروج تأكد أنك تعرف: تشخيصك بكلمات بسيطة، أدويتك الجديدة والموقوفة، مواعيد المراجعة، الفحوصات المعلّقة ونتائجها المتوقعة، وعلامات الخطر التي تستدعي الاتصال أو العودة. اطلب الخطة مكتوبة، وأعد صياغتها بكلماتك للتأكد من فهمك.",en:"Before leaving, make sure you know: your diagnosis in plain words, your new and stopped medications, follow-up appointments, pending tests and when results are expected, and the danger signs that mean you should call or return. Ask for the plan in writing, and restate it in your own words to check your understanding."}, src:"General patient-education guidance"},
+ {title:{ar:"التعافي بعد المستشفى: الضعف والتعب",en:"Recovery after hospital: weakness and fatigue"}, body:{ar:"بعد إقامة في المستشفى من الطبيعي الشعور بضعف وتعب واضطراب نوم لأسابيع. الحركة اليومية المتدرجة، والغذاء المنتظم، والنوم الجيد تساعد على التعافي. التزم بمواعيد المراجعة، وأبلغ فريقك إذا استمر الضعف أو ساء، أو ظهرت حرارة أو ضيق نفس.",en:"After a hospital stay, weakness, fatigue and disturbed sleep are common for weeks. Gradual daily movement, regular meals and good sleep support recovery. Keep your follow-up appointments, and tell your team if weakness persists or worsens, or if fever or breathlessness appears."}, src:"General patient-education guidance"},
+ {title:{ar:"سلامة الأدوية بعد الخروج",en:"Medication safety after discharge"}, body:{ar:"احتفظ بقائمة أدوية واحدة محدّثة، وخذ أدويتك كما وُصفت تماماً. لا توقف دواءً ولا تغيّر جرعته ولا تضف دواءً جديداً (حتى من الصيدلية دون وصفة) قبل سؤال طبيبك أو الصيدلي. إذا نسيت جرعة، لا تضاعف التالية إلا إذا قيل لك ذلك.",en:"Keep one updated medication list, and take your medications exactly as prescribed. Do not stop a medication, change its dose, or add a new one (even over-the-counter) before asking your doctor or pharmacist. If you miss a dose, do not double the next one unless you were told to."}, src:"General patient-education guidance"},
+ {title:{ar:"فحص السكري (HbA1c)",en:"Diabetes screening (HbA1c)"}, body:{ar:"فحص دم يقيس متوسط سكر الدم خلال الأشهر الماضية. توصي الإرشادات بفحص البالغين ٣٥–٧٠ سنة ممن لديهم زيادة وزن أو سمنة. النتيجة وحدها لا تكفي للتشخيص — يؤكدها الطبيب ويضع الخطة.",en:"A blood test measuring average blood sugar over past months. Guidelines recommend screening adults aged 35–70 who have overweight or obesity. A result alone is not a diagnosis — your doctor confirms it and sets the plan."}, src:"USPSTF — Diabetes screening recommendation (2021)"},
+ {title:{ar:"فحص ضغط الدم",en:"Blood pressure screening"}, body:{ar:"قياس بسيط وغير مؤلم. توصي الإرشادات بفحص جميع البالغين دورياً، لأن ارتفاع الضغط غالباً بلا أعراض وقد يضر القلب والكلى والعينين مع الوقت. قراءة واحدة مرتفعة لا تعني التشخيص — تُعاد القياسات وتُتابَع.",en:"A simple, painless measurement. Guidelines recommend periodic screening for all adults, because high blood pressure usually has no symptoms yet can harm the heart, kidneys and eyes over time. One high reading is not a diagnosis — measurements are repeated and followed up."}, src:"USPSTF — Hypertension screening recommendation (2021)"},
+ {title:{ar:"فحص الثدي (الماموغرام)",en:"Breast screening (mammogram)"}, body:{ar:"صورة أشعة للثدي للكشف المبكر عن تغيّرات قد تحتاج تقييماً. توصي الإرشادات النساء ٤٠–٧٤ سنة بإجرائه كل سنتين. النتيجة غير الطبيعية لا تعني وجود سرطان؛ تعني الحاجة لفحوصات إضافية.",en:"An X-ray of the breast for early detection of changes that may need assessment. Guidelines recommend it every two years for women aged 40–74. An abnormal result does not mean cancer is present; it means further tests are needed."}, src:"USPSTF — Breast cancer screening recommendation (2024)"},
+ {title:{ar:"فحص القولون (FIT)",en:"Colorectal screening (FIT)"}, body:{ar:"فحص براز بسيط يُجرى في البيت للكشف عن دم خفي قد يكون علامة مبكرة. توصي الإرشادات البالغين ٤٥–٧٥ سنة بالفحص الدوري. النتيجة الإيجابية تحتاج تنظير قولون للمتابعة.",en:"A simple stool test done at home to detect hidden blood that can be an early sign. Guidelines recommend regular screening for adults aged 45–75. A positive result needs a colonoscopy for follow-up."}, src:"USPSTF — Colorectal cancer screening recommendation (2021)"},
+ {title:{ar:"متى تطلب مساعدة عاجلة؟",en:"When should you seek urgent help?"}, body:{ar:"اطلب المساعدة فوراً أو اتصل بالإسعاف عند: ألم صدر، ضيق نفس شديد أو متزايد، حرارة عالية لا تنخفض، نزيف، ضعف مفاجئ في طرف أو الوجه، أو تشوش ذهني. لا تنتظر موعد المراجعة عند ظهور أي منها.",en:"Seek help immediately or call emergency services for: chest pain, severe or worsening breathlessness, high fever that does not come down, bleeding, sudden weakness of a limb or the face, or confusion. Do not wait for your follow-up appointment if any of these appear."}, src:"General patient-education guidance"}
+];
+const PREP_ITEMS = [
+ {ar:"بطاقة الهوية وأوراق التأمين أو الإحالة",en:"ID card and insurance or referral papers"},
+ {ar:"قائمة أدويتي الحالية وجرعاتها",en:"A list of my current medications and doses"},
+ {ar:"قائمة الحساسيات المعروفة",en:"A list of known allergies"},
+ {ar:"أسئلتي مكتوبة للفريق الطبي",en:"My questions written for the medical team"},
+ {ar:"أكدت مع الفريق: الصيام / إيقاف أي دواء قبل الإجراء",en:"Confirmed with the team: fasting / stopping any medication before the procedure"},
+ {ar:"رتّبت مرافقاً أو وسيلة نقل ليوم الدخول والخروج",en:"Arranged a companion or transport for admission and discharge days"}
+];
+const STAY_POINTS = [
+ {ar:"اسأل كل يوم: ما خطتي اليوم؟ وما الفحوصات المطلوبة ولماذا؟",en:"Ask every day: what is my plan today, and which tests are ordered and why?"},
+ {ar:"افهم كل دواء جديد: اسمه وغرضه وآثاره الجانبية الشائعة",en:"Understand every new medication: its name, purpose and common side effects"},
+ {ar:"أبلغ فوراً عن أي عرض جديد أو ألم متزايد",en:"Report any new symptom or increasing pain immediately"},
+ {ar:"دوّن أسئلتك في الأسفل لطرحها في جولة الطبيب",en:"Note your questions below to ask on the doctor's round"},
+ {ar:"قبل الخروج: اطلب خطتك مكتوبة وأعد صياغتها بكلماتك",en:"Before discharge: ask for your plan in writing and restate it in your own words"}
+];
+const DC_MEDS = [
+ {name:{ar:"أموكسيسيلين/كلافولانات 625 ملغ (مثال)",en:"Amoxicillin/clavulanate 625 mg (example)"}, dose:{ar:"قرص واحد صباحاً ومساءً — حتى ٢٨ تشرين الأول",en:"One tablet morning and evening — until 28 Oct"}, purpose:{ar:"مضاد حيوي لإكمال علاج التهاب الصدر",en:"Antibiotic to complete chest infection treatment"}},
+ {name:{ar:"لوسارتان 50 ملغ (مثال)",en:"Losartan 50 mg (example)"}, dose:{ar:"قرص واحد صباحاً",en:"One tablet in the morning"}, purpose:{ar:"لضبط ضغط الدم",en:"To control blood pressure"}},
+ {name:{ar:"باراسيتامول 500 ملغ (مثال)",en:"Paracetamol 500 mg (example)"}, dose:{ar:"قرص عند الحاجة للألم — بحد أقصى ٤ أقراص باليوم",en:"One tablet when needed for pain — maximum 4 tablets a day"}, purpose:{ar:"مسكّن للألم وخافض للحرارة",en:"For pain and fever"}},
+ {name:{ar:"فيتامين د 1000 وحدة (مثال)",en:"Vitamin D 1000 IU (example)"}, dose:{ar:"قرص واحد مع الفطور",en:"One tablet with breakfast"}, purpose:{ar:"مكمّل وُصف بعد تحليل الدم",en:"Supplement prescribed after the blood test"}}
+];
+function lsGet(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } }
+function lsSet(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+function todayKey(){ const d = new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function renderDc(){
+  const L = LANG;
+  document.getElementById("dcPlan").innerHTML =
+    '<div class="edu"><h3>'+(L==="ar"?"الحاج محمود، ٦٨ سنة — مثال تعليمي":"Hajj Mahmoud, 68 — illustrative example")+'</h3>'+
+    '<p>'+(L==="ar"?"دخل المستشفى بالتهاب صدر، وأقام ٩ أيام حتى استقر تنفسه. خطة الخروج: إكمال المضاد الحيوي في البيت، متابعة ضغط الدم، مراجعة عيادة المتابعة في ٢٩ تشرين الأول، وتسجيل التعافي والأدوية يومياً هنا.":"Admitted with a chest infection and stayed 9 days until his breathing settled. Discharge plan: complete the antibiotic at home, monitor blood pressure, follow-up clinic on 29 Oct, and log recovery and medications daily here.")+'</p></div>';
+  const prep = lsGet("riaya_prep_v1", {});
+  document.getElementById("prepList").innerHTML = PREP_ITEMS.map((it,i)=>'<label class="medrow"><span>'+esc(it[L])+'</span><input type="checkbox" data-prep="'+i+'" '+(prep[i]?"checked":"")+' style="width:22px;min-height:22px"></label>').join("");
+  document.querySelectorAll("[data-prep]").forEach(cb=>cb.addEventListener("change", ()=>{ const p = lsGet("riaya_prep_v1", {}); p[cb.dataset.prep] = cb.checked; lsSet("riaya_prep_v1", p); }));
+  document.getElementById("stayGuide").innerHTML = '<ul class="timeline">'+STAY_POINTS.map(p=>'<li>'+esc(p[L])+'</li>').join("")+'</ul>';
+  const q = document.getElementById("myQuestions"); if(document.activeElement !== q) q.value = lsGet("riaya_questions_v1", "");
+  const meds = lsGet("riaya_meds_v2", {}); const tk = todayKey(); const day = meds[tk] || {};
+  document.getElementById("dcMeds").innerHTML = DC_MEDS.map((m,i)=>'<div class="medrow"><div><strong>'+esc(m.name[L])+'</strong><br><span class="hint">'+esc(m.dose[L])+' — '+esc(m.purpose[L])+'</span></div><label><input type="checkbox" data-med="'+i+'" '+(day[i]?"checked":"")+' style="width:22px;min-height:22px"> '+(L==="ar"?"أخذتها اليوم":"Taken today")+'</label></div>').join("");
+  document.querySelectorAll("[data-med]").forEach(cb=>cb.addEventListener("change", ()=>{ const all = lsGet("riaya_meds_v2", {}); if(!all[tk]) all[tk] = {}; all[tk][cb.dataset.med] = cb.checked; lsSet("riaya_meds_v2", all); }));
+  document.getElementById("eduList").innerHTML = EDU_CONTENT.map(c=>'<div class="edu"><h3>'+esc(c.title[L])+'</h3><p>'+esc(c.body[L])+'</p><div class="src">'+esc(c.src)+'</div></div>').join("");
+  renderCiHistory();
+}
+function renderCiHistory(){
+  const hist = lsGet("riaya_checkins_v1", []);
+  document.getElementById("ciHistory").innerHTML = hist.length ? ('<strong>'+(LANG==="ar"?"سجل الأيام السابقة:":"Previous days:")+'</strong> ' + hist.slice(-5).reverse().map(h=>esc(h.date)).join(" · ")) : "";
+}
+function submitCheckin(){
+  const breath = document.getElementById("ci_breath").value, fever = document.getElementById("ci_fever").value;
+  const pain = Number(document.getElementById("ci_pain").value || 0);
+  const red = (breath === "worse" || fever === "yes" || pain >= 7);
+  const hist = lsGet("riaya_checkins_v1", []); hist.push({date: todayKey(), breath:breath, fever:fever, pain:pain, red:red}); lsSet("riaya_checkins_v1", hist);
+  const fb = document.getElementById("ciFeedback");
+  if(red){ fb.innerHTML = '<div class="redflag">'+(LANG==="ar"?"⚠ أجوبتك فيها علامة تحتاج تقييماً اليوم: تواصل مع فريق الرعاية الآن أو اطلب مساعدة عاجلة إذا ساءت الأعراض. (محاكاة: أُرسل تنبيه إلى منسّق الرعاية المسؤول عن حالتك.)":"⚠ Your answers include a sign that needs assessment today: contact your care team now, or seek urgent help if symptoms worsen. (Simulation: an alert was sent to the coordinator responsible for your case.)")+'</div>'; }
+  else { fb.innerHTML = '<div class="alert">'+(LANG==="ar"?"✔ سُجّل اليوم. لا علامات مقلقة في أجوبتك — واصل أدويتك وحركتك المتدرجة، وسجّل غداً من جديد.":"✔ Logged for today. No worrying signs in your answers — keep your medications and gradual movement, and log again tomorrow.")+'</div>'; }
+  renderCiHistory();
+}
+/* ---- chat-style gateway intake ---- */
+const CHAT_STEPS = [
+ {field:"gw_age", q:{ar:"أهلاً بك. سأسألك أسئلة قصيرة لعرض الفحوصات التي قد تناسبك. أولاً: كم عمرك؟",en:"Welcome. I will ask short questions to show screenings that may fit you. First: what is your age?"}, kind:"number"},
+ {field:"gw_sex", q:{ar:"ما الجنس؟",en:"What is your sex?"}, kind:"opts", opts:[["female",{ar:"أنثى",en:"Female"}],["male",{ar:"ذكر",en:"Male"}]]},
+ {field:"gw_smoke", q:{ar:"هل تدخّن حالياً أو دخّنت سابقاً؟",en:"Do you smoke now, or have you smoked before?"}, kind:"opts", opts:[["yes",{ar:"نعم",en:"Yes"}],["no",{ar:"لا",en:"No"}]]},
+ {field:"gw_smokeyears", q:{ar:"كم سنة دخّنت تقريباً؟",en:"For about how many years did you smoke?"}, kind:"number", skipIf:()=>document.getElementById("gw_smoke").value !== "yes"},
+ {field:"gw_bmi", q:{ar:"هل لديك زيادة وزن (حسب طبيبك)؟",en:"Do you have overweight (per your doctor)?"}, kind:"opts", opts:[["yes",{ar:"نعم",en:"Yes"}],["no",{ar:"لا",en:"No"}]]},
+ {field:"gw_family", q:{ar:"هل يوجد سكري أو سرطان قولون لدى قريب من الدرجة الأولى؟",en:"Is there diabetes or colorectal cancer in a first-degree relative?"}, kind:"opts", opts:[["yes",{ar:"نعم",en:"Yes"}],["no",{ar:"لا",en:"No"}]]}
+];
+let chatIdx = -1;
+function chatMsg(text, who){ const box = document.getElementById("chatBox"); const d = document.createElement("div"); d.className = "chatmsg " + who; d.textContent = text; box.appendChild(d); box.scrollTop = box.scrollHeight; return d; }
+function chatStep(){
+  const box = document.getElementById("chatBox");
+  while(chatIdx + 1 < CHAT_STEPS.length && CHAT_STEPS[chatIdx + 1].skipIf && CHAT_STEPS[chatIdx + 1].skipIf()) chatIdx++;
+  chatIdx++;
+  if(chatIdx >= CHAT_STEPS.length){
+    chatMsg(LANG==="ar"?"شكراً — عرضت الفحوصات المقترحة أسفل النموذج بناءً على أجوبتك.":"Thank you — I showed the suggested screenings below the form based on your answers.", "bot");
+    runGateway({preventDefault:function(){}});
+    document.getElementById("gwResults").scrollIntoView({behavior:"smooth", block:"start"});
+    return;
+  }
+  const st = CHAT_STEPS[chatIdx];
+  chatMsg(st.q[LANG], "bot");
+  const row = document.createElement("div"); row.className = "chatopts";
+  if(st.kind === "opts"){
+    st.opts.forEach(([val, label])=>{ const b = document.createElement("button"); b.type = "button"; b.textContent = label[LANG]; b.addEventListener("click", ()=>{ document.getElementById(st.field).value = val; chatMsg(label[LANG], "user"); row.remove(); chatStep(); }); row.appendChild(b); });
+  } else {
+    const inp = document.createElement("input"); inp.type = "number"; inp.min = "0"; inp.max = "120"; inp.style.maxWidth = "140px";
+    const b = document.createElement("button"); b.type = "button"; b.textContent = LANG==="ar"?"إرسال":"Send";
+    b.addEventListener("click", ()=>{ if(inp.value === "") return; document.getElementById(st.field).value = inp.value; chatMsg(inp.value, "user"); row.remove(); chatStep(); });
+    row.appendChild(inp); row.appendChild(b);
+  }
+  box.appendChild(row); box.scrollTop = box.scrollHeight;
+}
+function startChat(){
+  const box = document.getElementById("chatBox"); box.style.display = "block"; box.innerHTML = ""; chatIdx = -1; chatStep();
+}
+
 function renderAll(){
-  applyI18n(); fillFilterOptions();
+  applyI18n(); fillFilterOptions(); renderDc();
   renderPatientPicker(); renderMyResult();
   renderMetrics(); renderNeeds(); renderCaseList();
   if(selectedCaseId) renderDetail();
@@ -1032,7 +1242,10 @@ document.getElementById("ucSubmit").addEventListener("click", submitUnderstandin
 document.getElementById("sbarBtn").addEventListener("click", buildSbar);
 ["f_status","f_owner","f_type","f_over"].forEach(id=>document.getElementById(id).addEventListener("change", renderCaseList));
 document.getElementById("addForm").addEventListener("submit", addCase);
-document.getElementById("resetBtn").addEventListener("click", ()=>{ if(confirm(t("confirmReset"))){ localStorage.removeItem(LS_KEY); cases = loadCases(); selectedCaseId=null; renderAll(); } });
+document.getElementById("ciSubmit").addEventListener("click", submitCheckin);
+document.getElementById("chatStart").addEventListener("click", startChat);
+document.getElementById("myQuestions").addEventListener("input", e=>lsSet("riaya_questions_v1", e.target.value));
+document.getElementById("resetBtn").addEventListener("click", ()=>{ if(confirm(t("confirmReset"))){ localStorage.removeItem(LS_KEY); ["riaya_prep_v1","riaya_meds_v2","riaya_checkins_v1","riaya_questions_v1"].forEach(k=>localStorage.removeItem(k)); cases = loadCases(); selectedCaseId=null; renderAll(); prefillDate(); } });
 renderAll(); prefillDate();
 </script>
 </body>
