@@ -10,6 +10,19 @@ import { LAB_ENTRIES, findLabInText, findUncoveredLab, hasLabIntent, isDefinitio
 import { findSymptomGuide, hasSymptomIntent, composeSymptomGuide, composeSymptomChooser } from './src/utils/symptomGuides.ts';
 import { findGeneralFaq, composeFaqReply } from './src/utils/generalFaq.ts';
 import { normalizeArabic } from './src/utils/arabicText.ts';
+// H-MEM long-term memory (v9 sponsor layer; wraps the model chat path only).
+import { retrieveChatMemory, recordUserMessage, recordModelResponse } from './src/server/hmemChatMemory.ts';
+// Meterless Nightshift provider (v9 sponsor layer, Power): selectable via
+// LLM_PROVIDER=meterless; Gemini stays the default. See meterlessProvider.ts
+// for the contract, the URL-join decision and the error-honesty rule.
+import {
+  getLlmProvider,
+  getMeterlessConfig,
+  meterlessChatComplete,
+  meterlessChatStream,
+  meterlessDiscoverModels,
+  type MeterlessConfig,
+} from './src/server/meterlessProvider.ts';
 
 dotenv.config();
 
@@ -33,6 +46,26 @@ const ai = apiKey
       },
     })
   : null;
+
+// Chat-path LLM provider selection (v9 sponsor layer). Gemini is the
+// default and its code paths below are unchanged. When Meterless is
+// selected it becomes the chat path's provider: model availability is then
+// judged by the Meterless configuration alone, and a Meterless failure is
+// reported as AI_SERVICE_UNAVAILABLE — Gemini is never silently substituted.
+const llmProvider = getLlmProvider();
+const meterlessConfig: MeterlessConfig | null = llmProvider === 'meterless' ? getMeterlessConfig() : null;
+if (llmProvider === 'meterless') {
+  console.log(
+    meterlessConfig
+      ? `[meterless] chat provider: Meterless Runtime at ${meterlessConfig.baseUrl} (model/routing: ${meterlessConfig.model})`
+      : '[meterless] LLM_PROVIDER=meterless but METERLESS_BASE_URL / METERLESS_RUNTIME_TOKEN are not both set — chat model service unavailable',
+  );
+}
+
+/** Is the SELECTED chat provider usable? (Gemini: key present. Meterless: configured.) */
+function modelServiceAvailable(): boolean {
+  return llmProvider === 'meterless' ? !!meterlessConfig : !!ai;
+}
 
 // Safe in-memory response cache for repeat identical questions
 const responseCache = new Map<string, { reply: string; isUrgent: boolean; urgentReason: string; timestamp: number }>();
@@ -262,11 +295,16 @@ function labReplyIfApplicable(message: string, history: any[], language: string)
 // hospital teams work through cause categories (dangerous first), which
 // tests they order and why, and what each procedure gives the team. Never a
 // personal differential or diagnosis.
-function symptomReplyIfApplicable(message: string, language: string): { text: string; urgent: boolean } | null {
+// Urgency semantics (v8): a matched symptom guide is NOT urgent by itself.
+// The guide text still leads with its own emergency line, but the urgent
+// flag — and the client's urgent treatment — is reserved for messages the
+// red-flag safety check actually fires on. The endpoints pass their already
+// computed safetyCheck in, so both layers always agree.
+function symptomReplyIfApplicable(message: string, language: string, safety: { isUrgent: boolean; reason: string }): { text: string; urgent: boolean; reason: string } | null {
   const guide = findSymptomGuide(message);
-  if (guide) return { text: composeSymptomGuide(guide, language), urgent: true };
+  if (guide) return { text: composeSymptomGuide(guide, language), urgent: safety.isUrgent, reason: safety.isUrgent ? safety.reason : '' };
   if (isDefinitionQuestion(message)) return null;
-  if (hasSymptomIntent(message)) return { text: composeSymptomChooser(language), urgent: false };
+  if (hasSymptomIntent(message)) return { text: composeSymptomChooser(language), urgent: false, reason: '' };
   return null;
 }
 
@@ -282,9 +320,9 @@ app.post('/api/chat', async (req, res) => {
 
     // Symptom guide flow (deterministic; the guide itself leads with the
     // emergency action for the presentation).
-    const symptomReply = symptomReplyIfApplicable(message, language);
+    const symptomReply = symptomReplyIfApplicable(message, language, safetyCheck);
     if (symptomReply) {
-      return res.json({ reply: symptomReply.text, isUrgent: symptomReply.urgent, urgentReason: symptomReply.urgent ? 'symptom-guide' : '' });
+      return res.json({ reply: symptomReply.text, isUrgent: symptomReply.urgent, urgentReason: symptomReply.reason });
     }
 
     // Lab result explanation: deterministic verified-reference flow. It asks
@@ -305,10 +343,27 @@ app.post('/api/chat', async (req, res) => {
       }
     }
 
-    if (!ai) {
-      // Model service unavailable / no API key configured
+    // H-MEM (v9): retrieve this conversation's long-term memory and mine the
+    // user's turn BEFORE the model-availability check, so memory is recorded
+    // and reported even when the model is down. The deterministic routes
+    // above never reach this code; memory wraps the model path only.
+    const chatId = typeof (req.body as any)?.chatId === 'string' && req.body.chatId.trim()
+      ? req.body.chatId.trim().slice(0, 80)
+      : 'riaya-web';
+    const chatMemory = await retrieveChatMemory(chatId, message);
+    await recordUserMessage(chatId, message);
+    const memoryMeta = {
+      retrieved: chatMemory?.memories.length ?? 0,
+      injected: false,
+      memories: chatMemory?.memories ?? [],
+      strategy: chatMemory?.strategy ?? null,
+    };
+
+    if (!modelServiceAvailable()) {
+      // Model service unavailable / selected provider not configured
       return res.status(503).json({
         error: 'AI_SERVICE_UNAVAILABLE',
+        memory: memoryMeta,
         isUrgent: safetyCheck.isUrgent,
         reason: safetyCheck.reason,
         message: language === 'ar'
@@ -348,6 +403,7 @@ app.post('/api/chat', async (req, res) => {
         isUrgent: cached.isUrgent,
         urgentReason: cached.urgentReason,
         cached: true,
+        memory: memoryMeta,
       });
     }
 
@@ -370,42 +426,76 @@ app.post('/api/chat', async (req, res) => {
       }
     }
 
-    // Add current user message with stage annotation
-    const fullUserPrompt = `${stageContext}\n${message}`;
+    // Add current user message with stage annotation. When H-MEM retrieved
+    // grounded memories, the engine's own reinjection block goes between the
+    // stage context and the user's message.
+    const memoryBlock = chatMemory && chatMemory.memories.length ? `${chatMemory.context}\n` : '';
+    const fullUserPrompt = `${stageContext}\n${memoryBlock}${message}`;
     contents.push({ role: 'user', parts: [{ text: fullUserPrompt }] });
 
-    let response;
-    try {
-      response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents,
-        config: {
-          systemInstruction: SYSTEM_INSTRUCTION,
-          temperature: 0.2,
-          maxOutputTokens: 900, // low temperature for clinical safety & factual grounding
-          thinkingConfig: {
-            thinkingLevel: ThinkingLevel.LOW,
+    let modelText: string;
+    if (meterlessConfig) {
+      // Meterless Nightshift is the selected provider: the same contents
+      // (system instruction, history, stage context, H-MEM reinjection)
+      // go to the Runtime. ANY failure is reported as the app's standard
+      // AI_SERVICE_UNAVAILABLE — never a fabricated answer, never a
+      // silent substitution of Gemini while Meterless is claimed.
+      try {
+        modelText = await meterlessChatComplete(meterlessConfig, SYSTEM_INSTRUCTION, contents);
+      } catch (meterlessErr: any) {
+        console.error('Meterless chat error:', meterlessErr?.message);
+        return res.status(503).json({
+          error: 'AI_SERVICE_UNAVAILABLE',
+          memory: memoryMeta,
+          isUrgent: safetyCheck.isUrgent,
+          reason: safetyCheck.reason,
+          message: language === 'ar'
+            ? 'خدمة الذكاء الاصطناعي غير متوفرة حالياً. يمكنك تصفح قسم الأدلة الموثّقة في بوابة الفحوص.'
+            : 'The AI service is currently unavailable. Please refer to the Verified Guides section in the Screening Gateway.'
+        });
+      }
+    } else {
+      // Gemini path (default): modelServiceAvailable() above guarantees
+      // the client exists here; the guard only satisfies the type checker.
+      if (!ai) throw new Error('Gemini client unavailable on the Gemini provider path');
+      let response;
+      try {
+        response = await ai.models.generateContent({
+          model: 'gemini-3.8-flash',
+          contents,
+          config: {
+            systemInstruction: SYSTEM_INSTRUCTION,
+            temperature: 0.2,
+            maxOutputTokens: 900, // low temperature for clinical safety & factual grounding
+            thinkingConfig: {
+              thinkingLevel: ThinkingLevel.LOW,
+            },
           },
-        },
-      });
-    } catch (primaryErr: any) {
-      console.warn('Primary model error, attempting fallback to gemini-3.1-flash-lite:', primaryErr?.message);
-      response = await ai.models.generateContent({
-        model: 'gemini-3.1-flash-lite',
-        contents,
-        config: {
-          systemInstruction: SYSTEM_INSTRUCTION,
-          temperature: 0.2,
-          maxOutputTokens: 900,
-          thinkingConfig: {
-            thinkingLevel: ThinkingLevel.LOW,
+        });
+      } catch (primaryErr: any) {
+        console.warn('Primary model error, attempting fallback to gemini-3.1-flash-lite:', primaryErr?.message);
+        response = await ai.models.generateContent({
+          model: 'gemini-3.1-flash-lite',
+          contents,
+          config: {
+            systemInstruction: SYSTEM_INSTRUCTION,
+            temperature: 0.2,
+            maxOutputTokens: 900,
+            thinkingConfig: {
+              thinkingLevel: ThinkingLevel.LOW,
+            },
           },
-        },
-      });
+        });
+      }
+      modelText = response.text || '';
     }
 
-    const rawReply = response.text || (language === 'ar' ? 'عذراً، لم أتمكن من معالجة الرد.' : 'Sorry, could not generate a response.');
+    const rawReply = modelText || (language === 'ar' ? 'عذراً، لم أتمكن من معالجة الرد.' : 'Sorry, could not generate a response.');
     const replyText = isBridgePrompt(message) ? bridgeLabel(language) + rawReply : rawReply;
+
+    // H-MEM episodic write: mine the model's response as an interaction
+    // event in the same conversation scope.
+    await recordModelResponse(chatId, replyText);
 
     // Save to cache
     responseCache.set(cacheKey, {
@@ -420,6 +510,7 @@ app.post('/api/chat', async (req, res) => {
       text: replyText,
       isUrgent: safetyCheck.isUrgent,
       urgentReason: safetyCheck.reason,
+      memory: { ...memoryMeta, injected: !!memoryBlock },
     });
   } catch (error: any) {
     console.error('Gemini chat error:', error);
@@ -442,27 +533,23 @@ app.post('/api/chat/stream', async (req, res) => {
 
     const safetyCheck = detectRedFlags(message);
 
-    if (!ai) {
-      return res.status(503).json({
-        error: 'AI_SERVICE_UNAVAILABLE',
-        isUrgent: safetyCheck.isUrgent,
-        reason: safetyCheck.reason,
-        message: language === 'ar'
-          ? 'خدمة الذكاء الاصطناعي غير متوفرة حالياً. يمكنك تصفح قسم الأدلة الموثّقة في بوابة الفحوص.'
-          : 'The AI service is currently unavailable. Please refer to the Verified Guides section in the Screening Gateway.'
-      });
-    }
-
-    // Set SSE headers
-    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
-    res.setHeader('Cache-Control', 'no-cache, no-transform');
-    res.setHeader('Connection', 'keep-alive');
+    // Deterministic replies run BEFORE the model-availability check —
+    // mirroring /api/chat (v8 fix). These flows never call the model, so a
+    // Gemini outage must not take the verified guides, lab explanations or
+    // FAQ bank down with it. SSE headers are set only once a reply is
+    // actually streamed, so the 503 below still goes out as plain JSON.
+    const beginSse = () => {
+      res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache, no-transform');
+      res.setHeader('Connection', 'keep-alive');
+    };
 
     // Symptom guide flow (deterministic; leads with the emergency action).
-    const symptomReply = symptomReplyIfApplicable(message, language);
+    const symptomReply = symptomReplyIfApplicable(message, language, safetyCheck);
     if (symptomReply) {
+      beginSse();
       res.write(`data: ${JSON.stringify({ text: symptomReply.text })}\n\n`);
-      res.write(`data: ${JSON.stringify({ done: true, isUrgent: symptomReply.urgent, urgentReason: symptomReply.urgent ? 'symptom-guide' : '' })}\n\n`);
+      res.write(`data: ${JSON.stringify({ done: true, isUrgent: symptomReply.urgent, urgentReason: symptomReply.reason })}\n\n`);
       return res.end();
     }
 
@@ -470,6 +557,7 @@ app.post('/api/chat/stream', async (req, res) => {
     if (!safetyCheck.isUrgent) {
       const labReply = labReplyIfApplicable(message, history, language);
       if (labReply) {
+        beginSse();
         res.write(`data: ${JSON.stringify({ text: labReply })}\n\n`);
         res.write(`data: ${JSON.stringify({ done: true, isUrgent: false, urgentReason: '' })}\n\n`);
         return res.end();
@@ -480,18 +568,69 @@ app.post('/api/chat/stream', async (req, res) => {
     if (!safetyCheck.isUrgent) {
       const faqEntry = findGeneralFaq(message);
       if (faqEntry) {
+        beginSse();
         res.write(`data: ${JSON.stringify({ text: composeFaqReply(faqEntry, language) })}\n\n`);
         res.write(`data: ${JSON.stringify({ done: true, isUrgent: false, urgentReason: '' })}\n\n`);
         return res.end();
       }
     }
 
+    // H-MEM (v9): same memory wrap as /api/chat — retrieve + mine the user's
+    // turn before the model-availability check; deterministic routes above
+    // never reach this code.
+    const chatId = typeof (req.body as any)?.chatId === 'string' && req.body.chatId.trim()
+      ? req.body.chatId.trim().slice(0, 80)
+      : 'riaya-web';
+    const chatMemory = await retrieveChatMemory(chatId, message);
+    await recordUserMessage(chatId, message);
+    const memoryMeta = {
+      retrieved: chatMemory?.memories.length ?? 0,
+      injected: false,
+      memories: chatMemory?.memories ?? [],
+      strategy: chatMemory?.strategy ?? null,
+    };
+
+    if (!modelServiceAvailable()) {
+      return res.status(503).json({
+        error: 'AI_SERVICE_UNAVAILABLE',
+        memory: memoryMeta,
+        isUrgent: safetyCheck.isUrgent,
+        reason: safetyCheck.reason,
+        message: language === 'ar'
+          ? 'خدمة الذكاء الاصطناعي غير متوفرة حالياً. يمكنك تصفح قسم الأدلة الموثّقة في بوابة الفحوص.'
+          : 'The AI service is currently unavailable. Please refer to the Verified Guides section in the Screening Gateway.'
+      });
+    }
+
+    if (meterlessConfig) {
+      // Meterless pre-flight: model discovery (GET {base}/models) BEFORE
+      // any SSE byte is written, so an unreachable or unauthorised Runtime
+      // still earns the plain-JSON 503 above — the same honest failure the
+      // client already renders for a missing model service.
+      try {
+        await meterlessDiscoverModels(meterlessConfig);
+      } catch (preflightErr: any) {
+        console.error('Meterless preflight failed:', preflightErr?.message);
+        return res.status(503).json({
+          error: 'AI_SERVICE_UNAVAILABLE',
+          memory: memoryMeta,
+          isUrgent: safetyCheck.isUrgent,
+          reason: safetyCheck.reason,
+          message: language === 'ar'
+            ? 'خدمة الذكاء الاصطناعي غير متوفرة حالياً. يمكنك تصفح قسم الأدلة الموثّقة في بوابة الفحوص.'
+            : 'The AI service is currently unavailable. Please refer to the Verified Guides section in the Screening Gateway.'
+        });
+      }
+    }
+
+    beginSse();
+
     // Verified-source gate: medical question with no matching verified
     // source gets ONLY the no-source reply (locked rule).
     if (shouldGateToNoSource(message, safetyCheck.isUrgent)) {
       const reply = noSourceReply(language);
       res.write(`data: ${JSON.stringify({ text: reply })}\n\n`);
-      res.write(`data: ${JSON.stringify({ done: true, isUrgent: false, urgentReason: '' })}\n\n`);
+      res.write(`data: ${JSON.stringify({ done: true, isUrgent: false, urgentReason: '', memory: memoryMeta })}\n\n`);
       return res.end();
     }
 
@@ -507,7 +646,7 @@ app.post('/api/chat/stream', async (req, res) => {
     const cached = responseCache.get(cacheKey);
     if (cached && (Date.now() - cached.timestamp < CACHE_TTL_MS)) {
       res.write(`data: ${JSON.stringify({ text: cached.reply })}\n\n`);
-      res.write(`data: ${JSON.stringify({ done: true, isUrgent: cached.isUrgent, urgentReason: cached.urgentReason })}\n\n`);
+      res.write(`data: ${JSON.stringify({ done: true, isUrgent: cached.isUrgent, urgentReason: cached.urgentReason, memory: memoryMeta })}\n\n`);
       return res.end();
     }
 
@@ -530,7 +669,10 @@ app.post('/api/chat/stream', async (req, res) => {
         contents.push({ role: 'model', parts: [{ text: h.text }] });
       }
     }
-    contents.push({ role: 'user', parts: [{ text: `${stageContext}\n${message}` }] });
+    // H-MEM reinjection block (engine-formatted) rides inside the final user
+    // turn, between the stage context and the user's message.
+    const memoryBlock = chatMemory && chatMemory.memories.length ? `${chatMemory.context}\n` : '';
+    contents.push({ role: 'user', parts: [{ text: `${stageContext}\n${memoryBlock}${message}` }] });
 
     let fullAccumulated = '';
     if (isBridgePrompt(message)) {
@@ -538,45 +680,69 @@ app.post('/api/chat/stream', async (req, res) => {
       fullAccumulated += label;
       res.write(`data: ${JSON.stringify({ text: label })}\n\n`);
     }
-    try {
-      const responseStream = await ai.models.generateContentStream({
-        model: 'gemini-3.8-flash',
-        contents,
-        config: {
-          systemInstruction: SYSTEM_INSTRUCTION,
-          temperature: 0.2,
-          maxOutputTokens: 900,
-          thinkingConfig: {
-            thinkingLevel: ThinkingLevel.LOW,
-          },
-        },
-      });
-
-      for await (const chunk of responseStream) {
-        const text = chunk.text;
-        if (text) {
+    if (meterlessConfig) {
+      // Meterless Nightshift streaming: deltas from the Runtime's
+      // OpenAI-compatible SSE stream are relayed in this endpoint's own
+      // event format. On failure there is NO fallback provider to
+      // substitute (error honesty): the stream closes with the same
+      // in-band error event this endpoint already uses for late failures.
+      try {
+        for await (const text of meterlessChatStream(meterlessConfig, SYSTEM_INSTRUCTION, contents)) {
           fullAccumulated += text;
           res.write(`data: ${JSON.stringify({ text })}\n\n`);
         }
+      } catch (meterlessErr: any) {
+        console.error('Meterless stream error:', meterlessErr?.message);
+        res.write(`data: ${JSON.stringify({ error: true })}\n\n`);
+        return res.end();
       }
-    } catch (streamErr: any) {
-      console.warn('Streaming error, falling back to non-stream lite:', streamErr?.message);
-      const fallbackRes = await ai.models.generateContent({
-        model: 'gemini-3.1-flash-lite',
-        contents,
-        config: {
-          systemInstruction: SYSTEM_INSTRUCTION,
-          temperature: 0.2,
-          maxOutputTokens: 900,
-          thinkingConfig: {
-            thinkingLevel: ThinkingLevel.LOW,
+    } else {
+      // Gemini path (default): modelServiceAvailable() above guarantees
+      // the client exists here; the guard only satisfies the type checker.
+      if (!ai) throw new Error('Gemini client unavailable on the Gemini provider path');
+      try {
+        const responseStream = await ai.models.generateContentStream({
+          model: 'gemini-3.8-flash',
+          contents,
+          config: {
+            systemInstruction: SYSTEM_INSTRUCTION,
+            temperature: 0.2,
+            maxOutputTokens: 900,
+            thinkingConfig: {
+              thinkingLevel: ThinkingLevel.LOW,
+            },
           },
-        },
-      });
-      const txt = fallbackRes.text || '';
-      fullAccumulated = txt;
-      res.write(`data: ${JSON.stringify({ text: txt })}\n\n`);
+        });
+
+        for await (const chunk of responseStream) {
+          const text = chunk.text;
+          if (text) {
+            fullAccumulated += text;
+            res.write(`data: ${JSON.stringify({ text })}\n\n`);
+          }
+        }
+      } catch (streamErr: any) {
+        console.warn('Streaming error, falling back to non-stream lite:', streamErr?.message);
+        const fallbackRes = await ai.models.generateContent({
+          model: 'gemini-3.1-flash-lite',
+          contents,
+          config: {
+            systemInstruction: SYSTEM_INSTRUCTION,
+            temperature: 0.2,
+            maxOutputTokens: 900,
+            thinkingConfig: {
+              thinkingLevel: ThinkingLevel.LOW,
+            },
+          },
+        });
+        const txt = fallbackRes.text || '';
+        fullAccumulated = txt;
+        res.write(`data: ${JSON.stringify({ text: txt })}\n\n`);
+      }
     }
+
+    // H-MEM episodic write: mine the completed model response.
+    await recordModelResponse(chatId, fullAccumulated);
 
     // Save to cache
     responseCache.set(cacheKey, {
@@ -586,7 +752,7 @@ app.post('/api/chat/stream', async (req, res) => {
       timestamp: Date.now(),
     });
 
-    res.write(`data: ${JSON.stringify({ done: true, isUrgent: safetyCheck.isUrgent, urgentReason: safetyCheck.reason })}\n\n`);
+    res.write(`data: ${JSON.stringify({ done: true, isUrgent: safetyCheck.isUrgent, urgentReason: safetyCheck.reason, memory: { ...memoryMeta, injected: !!memoryBlock } })}\n\n`);
     res.end();
   } catch (error: any) {
     console.error('Stream error:', error);
@@ -670,6 +836,8 @@ app.get('/api/health', (req, res) => {
   res.json({
     status: 'healthy',
     hasApiKey: !!process.env.GEMINI_API_KEY,
+    llmProvider,
+    meterlessConfigured: !!meterlessConfig,
     timestamp: new Date().toISOString()
   });
 });
