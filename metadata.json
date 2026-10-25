@@ -1,0 +1,6 @@
+{
+  "name": "Riaya",
+  "description": "The AI Hospital Journey Companion — المرافق الصحي الذكي للمريض من دخول المستشفى حتى التعافي في المنزل",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
