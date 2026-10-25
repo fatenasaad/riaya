@@ -1237,32 +1237,6 @@ export const JourneyTab: React.FC<JourneyTabProps> = ({
                 </p>
               </div>
 
-              {/* Caesarean-specific follow-up instructions (NICE NG192-grounded) */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs space-y-3">
-                <h3 className="font-bold text-slate-900 text-base">
-                  {isAr ? 'تعليمات خاصة — المتابعة بعد العملية القيصرية' : 'Specific instructions — follow-up after a caesarean birth'}
-                </h3>
-                <ul className="space-y-2 text-sm text-slate-700 leading-relaxed">
-                  {[
-                    isAr ? 'الجرح: حافظي عليه نظيفاً وجافاً، والبسي ملابس واسعة ومريحة. راقبي علامات الالتهاب: ألم متزايد، احمرار، إفراز أو رائحة من الجرح، أو حرارة.' : 'Your wound: keep it clean and dry, and wear loose, comfortable clothing. Watch for signs of infection: increasing pain, redness, discharge or smell from the wound, or fever.',
-                    isAr ? 'الألم: خذي المسكّنات بانتظام كما وُصفت لك. الألم الطبيعي يخفّ تدريجياً يوماً بعد يوم — إذا ازداد بدل أن يخفّ، تواصلي مع فريقك.' : 'Pain: take your pain relief regularly as prescribed. Normal pain eases gradually day by day — if it gets worse instead of better, contact your team.',
-                    isAr ? 'الحركة: امشي مبكراً وبشكل تدريجي كل يوم — الحركة تحميك من جلطات الساق. في الأسابيع الأولى تجنّبي رفع أي شيء أثقل من طفلك.' : 'Movement: walk early and gradually every day — moving protects you from leg blood clots. In the first weeks, avoid lifting anything heavier than your baby.',
-                    isAr ? 'النزيف المهبلي (الهلابة): طبيعي بعد الولادة ويخفّ مع الوقت. نزيف غزير، كتل كبيرة، أو رائحة كريهة — تواصلي مع فريقك فوراً.' : 'Vaginal bleeding (lochia): normal after birth and it lessens over time. Heavy bleeding, large clots, or a bad smell — contact your team immediately.',
-                    isAr ? 'علامات خطر في أي وقت: حرارة، ألم أو تورّم في الساق، ضيق نفس أو ألم في الصدر — اطلبي مساعدة طبية فورية.' : 'Warning signs at any time: fever, leg pain or swelling, breathlessness or chest pain — seek urgent medical help.',
-                    isAr ? 'القيادة والرياضة: ارجعي لأنشطتك تدريجياً عندما تستطيعين التحرك براحة، واسألي فريقك الطبي (وشركة التأمين) تحديداً عن توقيت القيادة.' : 'Driving and exercise: return to your activities gradually once you can move comfortably, and ask your medical team (and insurer) specifically about when to drive.',
-                  ].map((line, i) => (
-                    <li key={i} className="flex gap-2">
-                      <span className="text-sky-700 font-bold">•</span>
-                      <span>{line}</span>
-                    </li>
-                  ))}
-                </ul>
-                <p className="text-[11px] text-slate-500 leading-relaxed border-t border-slate-100 pt-2.5">
-                  {isAr
-                    ? 'المصدر: NICE — دليل الولادة القيصرية NG192: https://www.nice.org.uk/guidance/NG192/chapter/recommendations — إرشادات عامة لا تغني عن تعليمات فريقك الطبي.'
-                    : 'Source: NICE — Caesarean birth guideline NG192: https://www.nice.org.uk/guidance/NG192/chapter/recommendations — general guidance; it does not replace your medical team’s instructions.'}
-                </p>
-              </div>
             </div>
           )}
 
@@ -1357,6 +1331,34 @@ export const JourneyTab: React.FC<JourneyTabProps> = ({
                       ? 'ستظهر أسئلة خاصة بمتابعة العملية القيصرية بعد الأسئلة العامة (النزيف، الصداع الشديد، الجرح، ألم الساق).'
                       : 'Cesarean-specific follow-up questions will appear after the general questions (bleeding, severe headache, wound, leg pain).'}
                   </p>
+                )}
+                {/* Caesarean-specific follow-up instructions (NICE NG192-grounded) — shown only with the caesarean follow-up */}
+                {surgeryType === 'cesarean' && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs space-y-3">
+                  <h3 className="font-bold text-slate-900 text-base">
+                    {isAr ? 'تعليمات خاصة — المتابعة بعد العملية القيصرية' : 'Specific instructions — follow-up after a caesarean birth'}
+                  </h3>
+                  <ul className="space-y-2 text-sm text-slate-700 leading-relaxed">
+                    {[
+                      isAr ? 'الجرح: حافظي عليه نظيفاً وجافاً، والبسي ملابس واسعة ومريحة. راقبي علامات الالتهاب: ألم متزايد، احمرار، إفراز أو رائحة من الجرح، أو حرارة.' : 'Your wound: keep it clean and dry, and wear loose, comfortable clothing. Watch for signs of infection: increasing pain, redness, discharge or smell from the wound, or fever.',
+                      isAr ? 'الألم: خذي المسكّنات بانتظام كما وُصفت لك. الألم الطبيعي يخفّ تدريجياً يوماً بعد يوم — إذا ازداد بدل أن يخفّ، تواصلي مع فريقك.' : 'Pain: take your pain relief regularly as prescribed. Normal pain eases gradually day by day — if it gets worse instead of better, contact your team.',
+                      isAr ? 'الحركة: امشي مبكراً وبشكل تدريجي كل يوم — الحركة تحميك من جلطات الساق. في الأسابيع الأولى تجنّبي رفع أي شيء أثقل من طفلك.' : 'Movement: walk early and gradually every day — moving protects you from leg blood clots. In the first weeks, avoid lifting anything heavier than your baby.',
+                      isAr ? 'النزيف المهبلي (الهلابة): طبيعي بعد الولادة ويخفّ مع الوقت. نزيف غزير، كتل كبيرة، أو رائحة كريهة — تواصلي مع فريقك فوراً.' : 'Vaginal bleeding (lochia): normal after birth and it lessens over time. Heavy bleeding, large clots, or a bad smell — contact your team immediately.',
+                      isAr ? 'علامات خطر في أي وقت: حرارة، ألم أو تورّم في الساق، ضيق نفس أو ألم في الصدر — اطلبي مساعدة طبية فورية.' : 'Warning signs at any time: fever, leg pain or swelling, breathlessness or chest pain — seek urgent medical help.',
+                      isAr ? 'القيادة والرياضة: ارجعي لأنشطتك تدريجياً عندما تستطيعين التحرك براحة، واسألي فريقك الطبي (وشركة التأمين) تحديداً عن توقيت القيادة.' : 'Driving and exercise: return to your activities gradually once you can move comfortably, and ask your medical team (and insurer) specifically about when to drive.',
+                    ].map((line, i) => (
+                      <li key={i} className="flex gap-2">
+                        <span className="text-sky-700 font-bold">•</span>
+                        <span>{line}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-[11px] text-slate-500 leading-relaxed border-t border-slate-100 pt-2.5">
+                    {isAr
+                      ? 'المصدر: NICE — دليل الولادة القيصرية NG192: https://www.nice.org.uk/guidance/NG192/chapter/recommendations — إرشادات عامة لا تغني عن تعليمات فريقك الطبي.'
+                      : 'Source: NICE — Caesarean birth guideline NG192: https://www.nice.org.uk/guidance/NG192/chapter/recommendations — general guidance; it does not replace your medical team’s instructions.'}
+                  </p>
+                </div>
                 )}
                 {surgeryType === 'catheter' && (
                   <p className="text-[11px] text-sky-800 leading-relaxed">
