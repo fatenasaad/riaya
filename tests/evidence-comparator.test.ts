@@ -3,7 +3,7 @@
  * Run: node --experimental-strip-types tests/evidence-comparator.test.ts
  *
  * These tests verify the comparator's behaviour over the loaded evidence
- * pack: source integrity, computed relations for the two real multi-source
+ * pack: source integrity, computed relations for the three real multi-source
  * topics, the insufficient-evidence state for single-source topics, the
  * user's computed position vs each source, and — via a clearly labelled
  * SYNTHETIC fixture — the potential-conflict branch. The synthetic fixture
@@ -78,6 +78,20 @@ t('diabetes relation is COMPUTED as scope_difference (age cap + weight condition
   assert.ok(!r.differences.includes('age_min'));
 });
 
+t('diabetes differences are EXACTLY three: age_max, weight_condition, risk_arm (v8)', () => {
+  const r = compareTopic('diabetes');
+  assert.deepEqual([...r.differences].sort(), ['age_max', 'risk_arm', 'weight_condition']);
+});
+
+t('risk_arm fires only when the two who-claims differ on hasRiskBasedArm (v8)', () => {
+  // colorectal: both sources lack a risk-based arm -> no risk_arm difference.
+  const colo = compareTopic('colorectal');
+  assert.ok(!colo.differences.includes('risk_arm'));
+  // Same-claim classification never invents a risk_arm difference.
+  const ada = who('diabetes', 'ADA');
+  assert.ok(!classifyClaims(ada, ada).differences.includes('risk_arm'));
+});
+
 t('colorectal relation is COMPUTED as compatible: identical bands, no differences, overlap 45-75', () => {
   const r = compareTopic('colorectal');
   assert.equal(r.relation, 'compatible');
@@ -91,7 +105,7 @@ t('a who-claim vs a how-claim classifies as complementary', () => {
 });
 
 t('single-source topics honestly report insufficient_evidence', () => {
-  for (const topic of ['breast', 'hypertension', 'lung']) {
+  for (const topic of ['hypertension', 'lung']) {
     const r = compareTopic(topic);
     assert.equal(r.relation, 'insufficient_evidence', topic);
     assert.ok(r.claims.length <= 1, topic);
@@ -136,7 +150,7 @@ t('SYNTHETIC fixture: opposite directions on disjoint scopes -> scope_difference
 });
 
 t('no REAL loaded pair classifies as potential_conflict (regression guard)', () => {
-  for (const topic of ['diabetes', 'colorectal']) {
+  for (const topic of ['diabetes', 'colorectal', 'breast']) {
     assert.notEqual(compareTopic(topic).relation, 'potential_conflict', topic);
   }
 });
@@ -162,7 +176,7 @@ t('diabetes position: age 72 -> outside USPSTF cap, inside ADA (no cap)', () => 
   assert.equal(userPosition(who('diabetes', 'ADA'), inp), 'inside_scope');
 });
 
-t('diabetes position: age 30 + overweight -> USPSTF outside; ADA unknown (risk arm needs factors we do not collect)', () => {
+t('diabetes position: age 30 + overweight, NO risk-factor answer -> USPSTF outside; ADA unknown (arm unresolved)', () => {
   const inp = inputs({ age: 30, hasOverweightObesity: 'yes' });
   assert.equal(userPosition(who('diabetes', 'USPSTF'), inp), 'outside_scope');
   assert.equal(userPosition(who('diabetes', 'ADA'), inp), 'unknown');
@@ -189,6 +203,84 @@ t("weight answered 'unknown' stays unknown — never collapsed into outside_scop
 t('position is unknown — never guessed — when age is missing', () => {
   assert.equal(userPosition(who('diabetes', 'ADA'), inputs({})), 'unknown');
   assert.equal(userPosition(who('colorectal', 'ACS'), inputs({})), 'unknown');
+});
+
+// ------------------------------------------------- breast pair (v9.3)
+t('breast loads two who-claims from two independent orgs (USPSTF + ACS)', () => {
+  const claims = EVIDENCE_CLAIMS.filter((c) => c.topic === 'breast' && c.aspect === 'who');
+  assert.equal(claims.length, 2);
+  assert.deepEqual(claims.map((c) => c.org).sort(), ['ACS', 'USPSTF']);
+});
+
+t('USPSTF breast tags match the 2024 recommendation: routine band 40-74, biennial', () => {
+  const u = who('breast', 'USPSTF');
+  assert.equal(u.ageMin, 40);
+  assert.equal(u.ageMax, 74);
+  assert.equal(u.sourceYear, '2024');
+});
+
+t('ACS breast tags match its guideline page: routine from 45, no fixed upper limit', () => {
+  const a = who('breast', 'ACS');
+  assert.equal(a.ageMin, 45);
+  assert.equal(a.ageMax, null);
+  assert.equal(a.weightRequired, false);
+  assert.equal(a.hasRiskBasedArm, false);
+});
+
+t('breast relation is COMPUTED as scope_difference (starting age + upper limit), overlap 45-74', () => {
+  const r = compareTopic('breast');
+  assert.equal(r.relation, 'scope_difference');
+  assert.deepEqual(r.overlap, { min: 45, max: 74 });
+  assert.deepEqual([...r.differences].sort(), ['age_max', 'age_min']);
+});
+
+t('breast position: woman 50, average risk -> inside BOTH sources (the agreement zone)', () => {
+  const inp = inputs({ age: 50, sexAssigned: 'female', hasBreastHighRisk: 'no' });
+  assert.equal(userPosition(who('breast', 'USPSTF'), inp), 'inside_scope');
+  assert.equal(userPosition(who('breast', 'ACS'), inp), 'inside_scope');
+});
+
+t('breast position: woman 42 -> inside USPSTF; outside ACS routine band (the 40-44 option lives in its claim text)', () => {
+  const inp = inputs({ age: 42, sexAssigned: 'female', hasBreastHighRisk: 'no' });
+  assert.equal(userPosition(who('breast', 'USPSTF'), inp), 'inside_scope');
+  assert.equal(userPosition(who('breast', 'ACS'), inp), 'outside_scope');
+});
+
+t('breast position: woman 78 -> outside USPSTF band (75+ is an I statement); inside ACS (no fixed cap)', () => {
+  const inp = inputs({ age: 78, sexAssigned: 'female', hasBreastHighRisk: 'no' });
+  assert.equal(userPosition(who('breast', 'USPSTF'), inp), 'outside_scope');
+  assert.equal(userPosition(who('breast', 'ACS'), inp), 'inside_scope');
+});
+
+t('breast position guards: male -> outside both; missing sex -> unknown; high-risk history -> outside both average-risk claims', () => {
+  const male = inputs({ age: 50, sexAssigned: 'male', hasBreastHighRisk: 'no' });
+  assert.equal(userPosition(who('breast', 'USPSTF'), male), 'outside_scope');
+  assert.equal(userPosition(who('breast', 'ACS'), male), 'outside_scope');
+  const noSex = inputs({ age: 50, hasBreastHighRisk: 'no' });
+  assert.equal(userPosition(who('breast', 'USPSTF'), noSex), 'unknown');
+  assert.equal(userPosition(who('breast', 'ACS'), noSex), 'unknown');
+  const high = inputs({ age: 50, sexAssigned: 'female', hasBreastHighRisk: 'yes' });
+  assert.equal(userPosition(who('breast', 'USPSTF'), high), 'outside_scope');
+  assert.equal(userPosition(who('breast', 'ACS'), high), 'outside_scope');
+});
+
+// -------------------------------------- ADA risk-factor arm input (v9.3)
+t('diabetes risk arm: age 30 + overweight + risk factors YES -> ADA inside via the risk arm; USPSTF still outside', () => {
+  const inp = inputs({ age: 30, hasOverweightObesity: 'yes', hasDiabetesRiskFactors: 'yes' });
+  assert.equal(userPosition(who('diabetes', 'USPSTF'), inp), 'outside_scope');
+  assert.equal(userPosition(who('diabetes', 'ADA'), inp), 'inside_scope');
+});
+
+t('diabetes risk arm: age 30 + overweight + risk factors NO -> ADA outside (age arm and risk arm both closed)', () => {
+  const inp = inputs({ age: 30, hasOverweightObesity: 'yes', hasDiabetesRiskFactors: 'no' });
+  assert.equal(userPosition(who('diabetes', 'ADA'), inp), 'outside_scope');
+});
+
+t("diabetes risk arm: 'not sure' stays unknown; risk factors WITHOUT overweight stay outside (the arm requires overweight)", () => {
+  const unsure = inputs({ age: 30, hasOverweightObesity: 'yes', hasDiabetesRiskFactors: 'unknown' });
+  assert.equal(userPosition(who('diabetes', 'ADA'), unsure), 'unknown');
+  const noWeight = inputs({ age: 30, hasOverweightObesity: 'no', hasDiabetesRiskFactors: 'yes' });
+  assert.equal(userPosition(who('diabetes', 'ADA'), noWeight), 'outside_scope');
 });
 
 console.log(`\n${passed} evidence-comparator tests passed`);
