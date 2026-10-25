@@ -218,6 +218,7 @@ export interface ScreeningInputs {
   sexAssigned?: 'female' | 'male' | 'other';
   isPregnant?: 'yes' | 'no' | 'unknown';
   hasOverweightObesity?: 'yes' | 'no' | 'unknown';
+  hasDiabetesRiskFactors?: 'yes' | 'no' | 'unknown';
   bmi?: number;
   hasKnownHypertension?: 'yes' | 'no' | 'unknown';
   smokingStatus?: 'never' | 'former' | 'current' | 'unknown';
