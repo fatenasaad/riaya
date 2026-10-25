@@ -51,6 +51,7 @@ export const ScreeningTab: React.FC<ScreeningTabProps> = ({ language, onAskRiaya
     sexAssigned: undefined,
     isPregnant: 'no',
     hasOverweightObesity: undefined,
+    hasDiabetesRiskFactors: undefined,
     hasKnownHypertension: 'no',
     smokingStatus: undefined,
     packYears: undefined,
@@ -115,6 +116,7 @@ export const ScreeningTab: React.FC<ScreeningTabProps> = ({ language, onAskRiaya
       sexAssigned: undefined,
       isPregnant: 'no',
       hasOverweightObesity: undefined,
+      hasDiabetesRiskFactors: undefined,
       hasKnownHypertension: 'no',
       smokingStatus: undefined,
       packYears: undefined,
@@ -130,7 +132,18 @@ export const ScreeningTab: React.FC<ScreeningTabProps> = ({ language, onAskRiaya
   };
 
   // Questions definition for the Conversational Wizard
-  const wizardQuestions = [
+  interface WizardQuestion {
+    id: string;
+    titleAr: string;
+    titleEn: string;
+    whyAr: string;
+    whyEn: string;
+    actionAr?: string;
+    actionEn?: string;
+    render: () => React.ReactNode;
+  }
+
+  const wizardQuestions: WizardQuestion[] = [
     {
       id: 'age',
       titleAr: 'ما هو عمرك الحالي بالسنوات؟',
@@ -205,6 +218,44 @@ export const ScreeningTab: React.FC<ScreeningTabProps> = ({ language, onAskRiaya
               {isAr ? opt.ar : opt.en}
             </button>
           ))}
+        </div>
+      )
+    },
+    {
+      id: 'diabetesRisk',
+      titleAr: 'عوامل خطر إضافية للسكري (مسار ADA):',
+      titleEn: 'Additional Diabetes Risk Factors (ADA Path):',
+      whyAr: 'إرشادات الجمعية الأمريكية للسكري (ADA، معايير الرعاية 2026) تنصح بفحص البالغين ذوي زيادة الوزن أو السمنة في أي عمر عند وجود عامل خطر إضافي واحد على الأقل — لذلك نسأل عن هذه العوامل ليُحسب موقعك من مصدر ADA من إجابتك، لا أن يُخمَّن.',
+      whyEn: 'The American Diabetes Association guidelines (ADA Standards of Care 2026) advise testing adults with overweight or obesity at any age when at least one additional risk factor is present — we ask about these factors so your position against the ADA source is computed from your answer, not guessed.',
+      actionAr: 'إذا لم تكن متأكداً من تاريخ عائلتك المرضي، اسأل أقاربك أو راجع سجلاتك الطبية؛ وإن انطبق عليك أي عامل، أخبر طبيبك في زيارتك القادمة حتى لو لم تبلغ عمر الفحص الروتيني بعد.',
+      actionEn: 'If you are unsure about your family history, ask relatives or check your medical records; if any factor applies to you, tell your doctor at your next visit even if you have not reached the routine screening age.',
+      render: () => (
+        <div className="space-y-3">
+          <label className="block text-xs font-semibold text-slate-700">
+            {isAr
+              ? 'هل ينطبق عليك أي مما يلي: قريب من الدرجة الأولى (أب/أم/أخ/أخت) مصاب بالسكري، أو انتماء لعرق عالي الخطورة، أو تاريخ مرضي بأمراض القلب والأوعية؟'
+              : 'Does any of the following apply to you: a first-degree relative (parent or sibling) with diabetes, high-risk ancestry, or a history of cardiovascular disease?'}
+          </label>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { val: 'yes', ar: 'نعم (عامل واحد على الأقل)', en: 'Yes (At least one)' },
+              { val: 'no', ar: 'لا (لا شيء منها)', en: 'No (None of these)' },
+              { val: 'unknown', ar: 'لست متأكداً', en: 'Not sure' },
+            ].map((opt) => (
+              <button
+                type="button"
+                key={opt.val}
+                onClick={() => setInputs({ ...inputs, hasDiabetesRiskFactors: opt.val as any })}
+                className={`p-3 rounded-xl border text-xs sm:text-sm font-medium transition-colors min-h-[48px] cursor-pointer ${
+                  inputs.hasDiabetesRiskFactors === opt.val
+                    ? 'bg-sky-600 text-white border-sky-600 shadow-2xs font-semibold'
+                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                {isAr ? opt.ar : opt.en}
+              </button>
+            ))}
+          </div>
         </div>
       )
     },
@@ -566,6 +617,12 @@ export const ScreeningTab: React.FC<ScreeningTabProps> = ({ language, onAskRiaya
                 <span className="font-semibold">{isAr ? 'لماذا نطلب ذلك؟ ' : 'Why this is requested: '}</span>
                 {isAr ? wizardQuestions[wizardStep].whyAr : wizardQuestions[wizardStep].whyEn}
               </p>
+              {wizardQuestions[wizardStep].actionAr && (
+                <p className="text-xs text-sky-800 leading-relaxed">
+                  <span className="font-semibold">{isAr ? 'شو تعمل؟ ' : 'What to do: '}</span>
+                  {isAr ? wizardQuestions[wizardStep].actionAr : wizardQuestions[wizardStep].actionEn}
+                </p>
+              )}
             </div>
 
             <div className="pt-2">
@@ -872,6 +929,7 @@ export const ScreeningTab: React.FC<ScreeningTabProps> = ({ language, onAskRiaya
                       age_max: { ar: 'السقف العمري', en: 'upper age limit' },
                       weight_condition: { ar: 'شرط الوزن', en: 'weight condition' },
                       individualized_band: { ar: 'نطاق القرار الفردي', en: 'individualized-decision band' },
+                      risk_arm: { ar: 'مسار فحص قائم على عوامل الخطر', en: 'risk-factor-based testing path' },
                     };
                     const posLabel: Record<string, { ar: string; en: string }> = {
                       inside_scope: { ar: 'داخل نطاق هذا المصدر', en: 'Inside this source\u2019s scope' },
@@ -1091,18 +1149,6 @@ export const ScreeningTab: React.FC<ScreeningTabProps> = ({ language, onAskRiaya
             language={language}
             onAskRiaya={onAskRiaya}
             onlyIds={['card-6', 'card-7', 'card-8', 'card-9']}
-            bare
-          />
-        </div>
-
-        <div className="space-y-3">
-          <h3 className="text-sm font-bold text-sky-800 uppercase tracking-wide">
-            {isAr ? 'أدلة رحلة العلاج' : 'Hospital Journey Guides'}
-          </h3>
-          <EducationTab
-            language={language}
-            onAskRiaya={onAskRiaya}
-            onlyIds={['card-1', 'card-2', 'card-3', 'card-4', 'card-5', 'card-10']}
             bare
           />
         </div>

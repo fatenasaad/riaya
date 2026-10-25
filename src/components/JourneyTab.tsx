@@ -2248,7 +2248,7 @@ export const JourneyTab: React.FC<JourneyTabProps> = ({
               <p className="font-semibold leading-relaxed">
                 {isAr
                   ? '«بيانات تدخلها بنفسك ولم يتحقق التطبيق من صحتها — راجع وصفتك الفعلية»'
-                  : '«Data entered by yourself and has not been verified by the app — refer to your actual prescription.»'}
+                  : 'Data entered by yourself and has not been verified by the app — refer to your actual prescription.'}
               </p>
             </div>
 
@@ -2355,7 +2355,7 @@ export const JourneyTab: React.FC<JourneyTabProps> = ({
                               <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-100 text-slate-500 text-xs italic text-center">
                                 {isAr
                                   ? '«لم يُستخدم اليوم — لم يكن مطلوباً»'
-                                  : '«Not used today — was not needed»'}
+                                  : 'Not used today — was not needed'}
                               </div>
                             ) : (
                               <div className="space-y-1.5">

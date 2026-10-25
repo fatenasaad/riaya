@@ -559,7 +559,7 @@ export const ClinicianTab: React.FC<ClinicianTabProps> = ({
                     {selectedCase.id}
                   </span>
                   <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-medium">
-                    {isAr ? selectedCase.nameAr : selectedCase.nameEn} ({selectedCase.age} {isAr ? 'سنة' : 'yo'})
+                    {isAr ? selectedCase.nameAr : selectedCase.nameEn} ({selectedCase.age} {isAr ? 'سنة' : 'y/o'})
                   </span>
                   {selectedCase.isSimulatedAlert && (
                     <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold">
