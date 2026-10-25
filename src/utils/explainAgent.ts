@@ -97,6 +97,7 @@ const RULE_FACTS: Record<string, Array<(inputs: ScreeningInputs) => ExplainFact>
   diabetes: [
     (i) => ({ labelAr: 'العمر', labelEn: 'Age', ...num(i.age) }),
     (i) => ({ labelAr: 'زيادة وزن أو سمنة', labelEn: 'Overweight or obesity', ...yn(i.hasOverweightObesity) }),
+    (i) => ({ labelAr: 'عوامل خطر إضافية للسكري', labelEn: 'Additional diabetes risk factors', ...yn(i.hasDiabetesRiskFactors) }),
     (i) => ({ labelAr: 'حمل', labelEn: 'Pregnancy', ...yn(i.isPregnant) }),
   ],
   hypertension: [

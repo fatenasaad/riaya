@@ -14,6 +14,9 @@ import type { ScreeningInputs } from '../types';
 //   - American Cancer Society colorectal screening guideline page
 //     (cancer.org; the page carries no publication year — access date is
 //     recorded in the claim's limits instead of inventing one).
+//   - USPSTF Breast Cancer: Screening (2024) and the American Cancer
+//     Society breast cancer screening guideline page (cancer.org) — both
+//     fetched and read on 25 Oct 2026 for the breast pair.
 //
 // The relation between two claims is COMPUTED from their scope tags (age
 // band, weight condition, aspect, direction) by classifyClaims() — never
@@ -65,7 +68,7 @@ export interface ComparisonResult {
   /** Computed age overlap of the two primary 'who' claims, when comparable. */
   overlap: { min: number; max: number | null } | null;
   /** Scope dimensions on which the two primary claims differ (computed). */
-  differences: Array<'age_min' | 'age_max' | 'weight_condition' | 'individualized_band'>;
+  differences: Array<'age_min' | 'age_max' | 'weight_condition' | 'individualized_band' | 'risk_arm'>;
 }
 
 export const EVIDENCE_CLAIMS: EvidenceClaim[] = [
@@ -111,8 +114,8 @@ export const EVIDENCE_CLAIMS: EvidenceClaim[] = [
     claimEn: 'Testing should begin at age 35 years for all other adults, with no weight condition; testing should also be considered at any age in adults with overweight or obesity who have one or more additional risk factors; if results are normal, repeat at a minimum of 3-year intervals.',
     supportsAr: 'بدء الفحص من عمر 35 للجميع، ومساراً قائماً على عوامل الخطر في أي عمر، وفاصل إعادة لا يقل عن 3 سنوات.',
     supportsEn: 'starting testing at age 35 for everyone, a risk-factor-based path at any age, and a repeat interval of at least every 3 years.',
-    limitsAr: 'مسار عوامل الخطر يتطلب معرفة عوامل لا يجمعها هذا النموذج كلها (كالتاريخ العائلي والعرق عالي الخطورة وتاريخ أمراض القلب)؛ والجدول مخصص للبالغين غير الحوامل وبلا أعراض.',
-    limitsEn: 'The risk-factor path needs factors this form does not fully collect (family history, high-risk ancestry, cardiovascular history); the table addresses asymptomatic, nonpregnant adults.',
+    limitsAr: 'يُقيَّم مسار عوامل الخطر من سؤال واحد مدمج عن العوامل المسماة هنا (التاريخ العائلي والعرق عالي الخطورة وتاريخ أمراض القلب) — لا يسجل النموذج أيَّ عامل منها ينطبق تحديداً، ويذكر جدول ADA عوامل إضافية لا يسأل عنها؛ والجدول مخصص للبالغين غير الحوامل وبلا أعراض.',
+    limitsEn: 'The risk-factor path is assessed from one combined question about the factors named here (family history, high-risk ancestry, cardiovascular history) — the form does not record which specific factor applies, and the ADA table lists further factors it does not ask about; the table addresses asymptomatic, nonpregnant adults.',
   },
   // ----------------------------------------------------------- colorectal
   {
@@ -181,6 +184,51 @@ export const EVIDENCE_CLAIMS: EvidenceClaim[] = [
     limitsAr: 'يتحدث عن أنواع الفحوص وفواصلها، لا عن من يجب أن يبدأ الفحص — لذلك يكمل ادعاءات «من يفحص» ولا يقارن بها مباشرة.',
     limitsEn: 'Addresses test types and intervals, not who should start screening — so it complements the "who" claims rather than being directly comparable to them.',
   },
+  // --------------------------------------------------------------- breast
+  {
+    id: 'breast-uspstf',
+    topic: 'breast',
+    org: 'USPSTF',
+    sourceTitle: 'USPSTF: Breast Cancer: Screening (2024)',
+    sourceYear: '2024',
+    sourceUrl: 'https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/breast-cancer-screening',
+    aspect: 'who',
+    direction: 'recommends',
+    ageMin: 40,
+    ageMax: 74,
+    individualizedMin: null,
+    individualizedMax: null,
+    weightRequired: false,
+    hasRiskBasedArm: false,
+    claimAr: 'يوصي بفحص الماموجرام كل سنتين للنساء من عمر 40 إلى 74 سنة (درجة B)؛ وللنساء من عمر 75 سنة فأكثر الأدلة الحالية غير كافية لتقييم توازن فوائد الفحص وأضراره (بيان I).',
+    claimEn: 'Recommends biennial screening mammography for women aged 40 to 74 years (grade B); for women 75 years or older, the current evidence is insufficient to assess the balance of benefits and harms of screening mammography (I statement).',
+    supportsAr: 'نطاق روتيني ثابت (40–74) وبفاصل موحّد كل سنتين لكل من يقع داخله.',
+    supportsEn: 'a fixed routine band (40–74) with one biennial interval for everyone inside it.',
+    limitsAr: 'ينطبق على النساء وجميع الأشخاص المحددين أنثى عند الولادة ذوي الخطورة المتوسطة، ويشمل أيضاً ذوات عوامل الخطورة المتزايدة كالتاريخ العائلي أو كثافة الثدي؛ ولا يشمل حاملي طفرات BRCA1/2، أو من تعرضوا لعلاج إشعاعي عالي الجرعة للصدر في عمر صغير، أو من أُصيبوا سابقاً بسرطان الثدي أو آفة عالية الخطورة. ولا يصدر توصية مع الفحص أو ضده بعد عمر 75.',
+    limitsEn: 'Applies to cisgender women and all persons assigned female at birth at average risk, and also covers people with increased-risk factors such as family history or dense breasts; it does not apply to people with a BRCA1/2 variation, prior high-dose chest radiation at a young age, or previous breast cancer or a high-risk breast lesion. It makes no recommendation for or against screening at 75 or older.',
+  },
+  {
+    id: 'breast-acs',
+    topic: 'breast',
+    org: 'ACS',
+    sourceTitle: 'American Cancer Society: Breast Cancer Screening Guideline',
+    sourceYear: '2026',
+    sourceUrl: 'https://www.cancer.org/cancer/types/breast-cancer/screening-tests-and-early-detection/american-cancer-society-recommendations-for-the-early-detection-of-breast-cancer.html',
+    aspect: 'who',
+    direction: 'recommends',
+    ageMin: 45,
+    ageMax: null,
+    individualizedMin: null,
+    individualizedMax: null,
+    weightRequired: false,
+    hasRiskBasedArm: false,
+    claimAr: 'للنساء من عمر 40 إلى 44 خيار بدء الفحص بالماموجرام كل سنة؛ والنساء من 45 إلى 54 ينبغي أن يجرين الماموجرام كل سنة؛ ومن عمر 55 فأكثر يمكن التبديل إلى ماموجرام كل سنتين أو متابعة الفحص سنوياً، ويستمر الفحص ما دامت المرأة بصحة جيدة ويُتوقع أن تعيش 10 سنوات أخرى على الأقل.',
+    claimEn: 'Women between 40 and 44 have the option to start screening with a mammogram every year; women 45 to 54 should get mammograms every year; women 55 and older can switch to a mammogram every other year or continue yearly mammograms, and screening should continue as long as a woman is in good health and is expected to live at least 10 more years.',
+    supportsAr: 'بدءاً اختيارياً أبكر (40–44)، وفحصاً سنوياً بين 45 و54، وبلا سقف عمري ثابت — الاستمرار مرتبط بالصحة الجيدة ومتوسط العمر المتوقع.',
+    supportsEn: 'an earlier optional start (40–44), annual screening at 45–54, and no fixed upper age limit — continuation is tied to good health and life expectancy instead.',
+    limitsAr: 'يخاطب النساء ذوات الخطورة المتوسطة (لا إصابة شخصية سابقة بسرطان الثدي، ولا تاريخ عائلي قوي، ولا طفرة جينية معروفة برفع الخطورة، ولا علاج إشعاعي للصدر قبل عمر 30)؛ أما ذوات الخطورة العالية فيُوجَّهن إلى رنين مغناطيسي وماموجرام سنوياً ابتداءً من عمر 30 عادة. تحمل الصفحة تاريخ آخر مراجعة (23 يوليو 2026)؛ أما تحديث إرشادات الجمعية الأساسي لهذا الفحص فنُشر عام 2015.',
+    limitsEn: 'Addresses women at average risk (no personal history of breast cancer, no strong family history, no known risk-increasing gene change, and no chest radiation therapy before age 30); women at high risk are instead directed to a breast MRI and a mammogram every year, typically starting at age 30. The page shows a last-revised date (23 July 2026); the underlying ACS guideline update for this screening was published in 2015.',
+  },
 ];
 
 const INF = 999;
@@ -217,6 +265,7 @@ export function classifyClaims(a: EvidenceClaim, b: EvidenceClaim): ComparisonRe
   if (a.ageMax !== b.ageMax) differences.push('age_max');
   if (a.weightRequired !== b.weightRequired) differences.push('weight_condition');
   if (a.individualizedMin !== b.individualizedMin || a.individualizedMax !== b.individualizedMax) differences.push('individualized_band');
+  if (a.hasRiskBasedArm !== b.hasRiskBasedArm) differences.push('risk_arm');
 
   return {
     ...base,
@@ -241,8 +290,9 @@ export type UserPosition = 'inside_scope' | 'outside_scope' | 'individualized_zo
 /**
  * Where the user's own inputs fall relative to one claim's scope.
  * Uses only the inputs this app actually collects (age, overweight status,
- * colorectal symptoms/high-risk). Returns 'unknown' when a needed input is
- * missing — never guesses.
+ * diabetes risk factors, colorectal symptoms/high-risk, sex assigned at
+ * birth, breast high-risk status). Returns 'unknown' when a needed input
+ * is missing — never guesses.
  */
 export function userPosition(claim: EvidenceClaim, inputs: ScreeningInputs): UserPosition {
   if (claim.aspect !== 'who') return 'unknown';
@@ -251,6 +301,16 @@ export function userPosition(claim: EvidenceClaim, inputs: ScreeningInputs): Use
 
   if (claim.topic === 'colorectal' && inputs.hasColorectalSymptomsOrHighRisk === 'yes') {
     return 'outside_scope'; // these claims cover average-risk screening only
+  }
+  if (claim.topic === 'breast') {
+    // These claims address women / persons assigned female at birth at
+    // average risk. Without a recorded sex the position cannot be
+    // determined; a population the claim does not address, or an explicit
+    // high-risk history, falls outside both average-risk claims
+    // (specialist pathways apply instead).
+    if (inputs.sexAssigned === undefined) return 'unknown';
+    if (inputs.sexAssigned !== 'female') return 'outside_scope';
+    if (inputs.hasBreastHighRisk === 'yes') return 'outside_scope';
   }
   if (
     claim.individualizedMin !== null &&
@@ -263,13 +323,18 @@ export function userPosition(claim: EvidenceClaim, inputs: ScreeningInputs): Use
   const aboveMin = claim.ageMin === null || age >= claim.ageMin;
   const belowMax = claim.ageMax === null || age <= claim.ageMax;
   if (!aboveMin) {
-    // Below the age arm: a risk-based arm may still apply, but it needs
-    // factors this app does not fully collect — say so instead of guessing.
+    // Below the age arm: a risk-based arm may still apply. The wizard asks
+    // one combined question about the documented risk factors, so the arm
+    // resolves when both answers are explicit — and only then: the arm
+    // itself requires overweight/obesity, an explicit 'no' to either
+    // question closes it, and anything missing stays 'unknown'.
     if (claim.hasRiskBasedArm) {
-      // 'yes' -> the arm may apply but its factors are not fully collected;
-      // 'unknown'/missing -> indeterminate; only an explicit 'no' (normal
-      // weight, per the wizard's own label) closes the risk arm.
-      return inputs.hasOverweightObesity === 'no' ? 'outside_scope' : 'unknown';
+      if (inputs.hasOverweightObesity === 'no') return 'outside_scope';
+      if (inputs.hasOverweightObesity === 'yes') {
+        if (inputs.hasDiabetesRiskFactors === 'yes') return 'inside_scope';
+        if (inputs.hasDiabetesRiskFactors === 'no') return 'outside_scope';
+      }
+      return 'unknown';
     }
     return 'outside_scope';
   }
